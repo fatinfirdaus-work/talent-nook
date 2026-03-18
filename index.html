@@ -2280,6 +2280,200 @@ function openCandInNewTab(id) {
   window.open(url, '_blank');
 }
 
+function renderCandProfileContent(id) {
+  const c = getCand(id);
+  if(!c) return;
+  const job = getJob(c.jobId);
+  const allInterviews = c.interviews || [];
+  const allFeedback = c.feedback || [];
+  const stars = Array(5).fill(0).map((_,i)=>'<span style="color:' + (i<(c.rating||0)?'var(--amber)':'var(--border2)') + ';font-size:15px;cursor:pointer" onclick="rateCand(' + c.id + ',' + (i+1) + ')">' + (i<(c.rating||0)?'★':'☆') + '</span>').join('');
+
+  const el = document.getElementById('candprofile-content');
+  el.style.cssText = 'height:calc(100vh - 56px);display:flex;flex-direction:column;overflow:hidden;';
+
+  // Build left tab contents using string concat to avoid nested backtick issues
+  const resumeTab = buildResumeTabHTML(c);
+  const detailsTab = buildDetailsTabHTML(c);
+  const historyTab = buildHistoryHTML(c, allInterviews, allFeedback);
+
+  el.innerHTML =
+    // TOPBAR
+    '<div style="padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg2);flex-shrink:0;flex-wrap:wrap;">' +
+    '<span style="cursor:pointer;color:var(--text3);font-size:13px;" onclick="showPage(\'candidates\',null)">← Candidates</span>' +
+    '<span style="color:var(--border2)">›</span>' +
+    '<span style="font-size:13px;color:var(--accent);cursor:pointer" onclick="showPage(\'jobs\',null);setTimeout(()=>openJobDetail(' + c.jobId + '),100)">' + (job?job.title:'Job') + '</span>' +
+    '<span style="color:var(--border2)">›</span>' +
+    '<span style="font-size:13px;font-weight:600">' + c.name + '</span>' +
+    '<div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">' +
+    '<button class="btn btn-ghost btn-sm" onclick="openEditCandidate(' + c.id + ')">✏️ Edit</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="openAddNote(' + c.id + ')">📝 Note</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="openScheduleInterview(' + c.id + ')">📅 Schedule</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="openCreateOffer(' + c.id + ')">📄 Offer</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="openCandInNewTab(' + c.id + ')" title="Open in new tab">↗ New Tab</button>' +
+    '<button class="btn btn-primary btn-sm" onclick="openMoveStage(' + c.id + ')">Move Stage ↕</button>' +
+    '<button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:var(--red-dim)" onclick="rejectCandidate(' + c.id + ')">✕ Reject</button>' +
+    '</div></div>' +
+
+    // MAIN LAYOUT
+    '<div style="display:grid;grid-template-columns:1fr 420px;flex:1;overflow:hidden;min-height:0;">' +
+
+    // LEFT PANEL
+    '<div id="cp-left-panel" style="overflow-y:auto;border-right:1px solid var(--border);display:flex;flex-direction:column;">' +
+
+    // Candidate header
+    '<div style="padding:20px 24px;border-bottom:1px solid var(--border);">' +
+    '<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:14px;">' +
+    '<div style="width:68px;height:68px;border-radius:50%;background:' + c.color + '33;color:' + c.color + ';display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;flex-shrink:0;">' + c.initials + '</div>' +
+    '<div style="flex:1;">' +
+    '<div style="font-size:18px;font-weight:800;margin-bottom:4px;">' + c.name + '<span style="font-size:13px;font-weight:400;color:var(--text3);margin-left:8px;">' + stars + '</span></div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">' +
+    (c.source?'<span class="badge badge-amber" style="font-size:11px">' + c.source + '</span>':'') +
+    '<span class="badge ' + (stageBadge[c.stage]||'badge-gray') + '">' + c.stage + '</span>' +
+    (c.hasResume?'<span class="badge badge-gray">📄 Resume</span>':'') +
+    '</div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--text3);">' +
+    (c.exp?'<span>💼 ' + c.exp + '</span>':'') +
+    (c.location?'<span>📍 ' + c.location + '</span>':'') +
+    (c.applied?'<span>📅 Applied ' + c.applied + '</span>':'') +
+    '</div></div></div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:16px;font-size:12px;padding:10px 0;border-top:1px solid var(--border);">' +
+    (c.phone?'<a href="tel:' + c.phone + '" style="color:var(--accent);">📞 ' + c.phone + '</a>':'') +
+    (c.email?'<a href="mailto:' + c.email + '" style="color:var(--accent);">✉️ ' + c.email + '</a>':'') +
+    (c.currentTitle?'<span style="color:var(--text2);">🏢 ' + c.currentTitle + '</span>':'') +
+    '</div>' +
+    '<div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;">' +
+    '<button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:var(--red-dim)" onclick="rejectCandidate(' + c.id + ')">Reject</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="shareCandidate(' + c.id + ')">Share</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="openScheduleInterview(' + c.id + ')">Schedule Interview</button>' +
+    '<button class="btn btn-primary btn-sm" onclick="openMoveStage(' + c.id + ')">Move Stage</button>' +
+    (c.stage!=='Offer'&&c.stage!=='Hired'?'<button class="btn btn-ghost btn-sm" onclick="openCreateOffer(' + c.id + ')">Create Offer</button>':'') +
+    '</div></div>' +
+
+    // Left tabs
+    '<div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;">' +
+    '<div class="cp-tab active" onclick="switchLeftTab(this,\'lt-resume\')">Resume ' + (c.hasResume?'(1)':'(0)') + '</div>' +
+    '<div class="cp-tab" onclick="switchLeftTab(this,\'lt-details\')">Details</div>' +
+    '<div class="cp-tab" onclick="switchLeftTab(this,\'lt-extra\')">Additional Info</div>' +
+    '<div class="cp-tab" onclick="switchLeftTab(this,\'lt-history\')">Action History</div>' +
+    '</div>' +
+
+    // Resume tab
+    '<div id="lt-resume" class="cp-tab-content active" style="flex-direction:column;overflow:hidden;">' + resumeTab + '</div>' +
+
+    // Details tab
+    '<div id="lt-details" class="cp-tab-content" style="padding:20px 24px;">' + detailsTab + '</div>' +
+
+    // Additional info tab
+    '<div id="lt-extra" class="cp-tab-content" style="padding:20px 24px;">' +
+    '<div style="text-align:center;padding:32px 0;color:var(--text3);">' +
+    '<div style="font-size:32px;margin-bottom:10px;">📋</div>' +
+    'Cover letters, portfolio links, and custom fields can be added when editing the candidate.' +
+    '<div style="margin-top:16px;"><button class="btn btn-primary btn-sm" onclick="openEditCandidate(' + c.id + ')">Edit Candidate</button></div>' +
+    '</div></div>' +
+
+    // History tab
+    '<div id="lt-history" class="cp-tab-content" style="padding:0;">' + historyTab + '</div>' +
+
+    '</div>' + // end left panel
+
+    // RIGHT PANEL
+    '<div id="cp-right-panel" style="overflow-y:auto;background:var(--bg2);display:flex;flex-direction:column;">' +
+
+    // Job info bar
+    '<div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg3);">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">' +
+    '<span style="font-size:13px;font-weight:700;cursor:pointer;color:var(--accent);" onclick="showPage(\'jobs\',null);setTimeout(()=>openJobDetail(' + c.jobId + '),100)">' + (job?job.title:'Unknown Job') + '</span>' +
+    '<span class="badge ' + (job&&job.status==='Active'?'badge-green':job&&job.status==='Paused'?'badge-amber':'badge-gray') + '" style="font-size:10px">' + (job?job.status:'–') + '</span>' +
+    '</div>' +
+    '<div style="font-size:11px;color:var(--text3);">' + (job?job.dept:'') + ' · ' + (job?job.location:'') + ' · Applied ' + c.applied + '</div>' +
+    '</div>' +
+
+    // Stage tracker
+    '<div style="padding:14px 16px;border-bottom:1px solid var(--border);">' +
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:10px;">Hiring Stage</div>' +
+    '<div id="cp-stage-tracker" style="display:flex;align-items:center;overflow-x:auto;padding-bottom:4px;">' +
+    buildStageTrackerHTML(c) +
+    '</div></div>' +
+
+    // Similar candidates
+    '<div style="padding:12px 16px;border-bottom:1px solid var(--border);">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\'">' +
+    '<div style="font-size:12px;font-weight:600;color:var(--text2);">👥 Similar candidates (' + candidates.filter(x=>x.id!==c.id&&x.jobId===c.jobId).length + ')</div>' +
+    '<span style="color:var(--text3);">▾</span></div>' +
+    '<div style="display:none;margin-top:10px;">' +
+    (candidates.filter(x=>x.id!==c.id&&x.jobId===c.jobId).slice(0,4).map(x=>'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--border);" onclick="openCandProfile(' + x.id + ')"><div style="width:26px;height:26px;border-radius:50%;background:' + x.color + '33;color:' + x.color + ';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">' + x.initials + '</div><div style="flex:1;font-size:12px;font-weight:600;">' + x.name + '</div><span class="badge ' + (stageBadge[x.stage]||'badge-gray') + '" style="font-size:10px">' + x.stage + '</span></div>').join('') || '<div style="color:var(--text3);font-size:12px;">None</div>') +
+    '</div></div>' +
+
+    // Interviews
+    '<div id="cp-interviews-section">' + buildInterviewsHTML(c, allInterviews, allFeedback) + '</div>' +
+
+    // Offers
+    buildOffersHTML(c) +
+
+    // Add general feedback
+    '<div style="padding:14px 16px;">' +
+    '<button class="btn btn-ghost btn-sm" style="width:100%;" onclick="openAddFeedback(' + c.id + ')">+ Add General Feedback</button>' +
+    '</div>' +
+
+    '</div>' + // end right panel
+    '</div>'; // end main layout
+
+  // Load PDF
+  if(c.hasResume) setTimeout(()=>loadInlinePdf(id), 200);
+}
+
+function buildResumeTabHTML(c) {
+  if(!c.hasResume) {
+    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);padding:40px;">' +
+      '<div style="font-size:48px;margin-bottom:12px;">📂</div>' +
+      '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">No resume uploaded</div>' +
+      '<button class="btn btn-primary" onclick="openEditCandidate(' + c.id + ')">Upload Resume</button></div>';
+  }
+  return '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;">' +
+    '<span style="font-size:13px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ' + (c.resumeFilename||'Resume') + '</span>' +
+    '<div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:4px 8px;">' +
+    '<button onclick="pdfPrevPage()" class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:14px;">‹</button>' +
+    '<span style="font-size:12px;font-family:JetBrains Mono,monospace;color:var(--text2);"><span id="pdf-page-num">1</span> / <span id="pdf-page-total">–</span></span>' +
+    '<button onclick="pdfNextPage()" class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:14px;">›</button></div>' +
+    '<div style="display:flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:4px 8px;">' +
+    '<button onclick="pdfZoomOut()" class="btn btn-ghost btn-sm" style="padding:2px 8px;">−</button>' +
+    '<span id="pdf-zoom-label" style="font-size:12px;font-family:JetBrains Mono,monospace;color:var(--text2);min-width:40px;text-align:center;">100%</span>' +
+    '<button onclick="pdfZoomIn()" class="btn btn-ghost btn-sm" style="padding:2px 8px;">+</button>' +
+    '<button onclick="pdfZoomFit()" class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;">⊡</button></div>' +
+    '<button class="btn btn-ghost btn-sm" onclick="downloadResume(' + c.id + ')">⬇</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="viewResume(' + c.id + ')">↗</button></div>' +
+    '<div id="pdf-container" style="flex:1;overflow:auto;background:#525659;display:flex;flex-direction:column;align-items:center;padding:16px;">' +
+    '<div style="text-align:center;color:#ccc;padding:40px;"><div style="font-size:32px;margin-bottom:10px;">⏳</div><div>Loading resume...</div></div></div>';
+}
+
+function buildDetailsTabHTML(c) {
+  const skillsHTML = (c.skills||[]).map(s=>'<span class="skill-tag">' + s + '</span>').join('') || '<span style="color:var(--text3);font-size:12px">None</span>';
+  const scoreColor = c.score>=80?'var(--green)':c.score>=60?'var(--amber)':'var(--red)';
+  const notesHTML = '<div id="notes-section-' + c.id + '">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+    '<div class="cp-field-label">Notes</div>' +
+    '<button class="btn btn-primary btn-sm" onclick="openAddNote(' + c.id + ')">+ Add Note</button></div>' +
+    renderNotesList(c) + '</div>';
+
+  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">' +
+    '<div><div class="cp-field-label">Full Name</div><div class="cp-field-val">' + c.name + '</div></div>' +
+    '<div><div class="cp-field-label">Email</div><div class="cp-field-val"><a href="mailto:' + (c.email||'') + '" style="color:var(--accent)">' + (c.email||'–') + '</a></div></div>' +
+    '<div><div class="cp-field-label">Phone</div><div class="cp-field-val">' + (c.phone||'–') + '</div></div>' +
+    '<div><div class="cp-field-label">Location</div><div class="cp-field-val">' + (c.location||'–') + '</div></div>' +
+    '<div><div class="cp-field-label">Experience</div><div class="cp-field-val">' + (c.exp||'–') + '</div></div>' +
+    '<div><div class="cp-field-label">Current Title</div><div class="cp-field-val">' + (c.currentTitle||'–') + '</div></div>' +
+    '<div><div class="cp-field-label">Source</div><div class="cp-field-val">' + (c.source||'–') + '</div></div>' +
+    '<div><div class="cp-field-label">Applied Date</div><div class="cp-field-val">' + (c.applied||'–') + '</div></div>' +
+    '</div>' +
+    '<div style="margin-bottom:16px;"><div class="cp-field-label" style="margin-bottom:6px;">Skills</div><div class="skill-tags">' + skillsHTML + '</div></div>' +
+    '<div style="margin-bottom:16px;"><div class="cp-field-label" style="margin-bottom:6px;">AI Match Score</div>' +
+    '<div style="display:flex;align-items:center;gap:12px;"><span style="font-size:28px;font-weight:800;font-family:JetBrains Mono,monospace;color:' + scoreColor + '">' + c.score + '</span>' +
+    '<div style="flex:1;"><div class="score-bar" style="height:6px;"><div class="score-fill" style="width:' + c.score + '%;background:' + scoreColor + '"></div></div>' +
+    '<div style="font-size:11px;color:var(--text3);margin-top:3px;">' + (c.score>=80?'Strong match':c.score>=60?'Moderate match':'Weak match') + '</div></div></div></div>' +
+    notesHTML;
+}
+
+
 // ===================== URL ROUTING =====================
 function navigateToHash(hash) {
   if(!hash || hash==='#' || hash==='') { showPage('dashboard', null, false); return; }
@@ -2467,331 +2661,215 @@ function openEditNotes(id) { openAddNote(id); }
 function saveNotes(id) { saveNewNote(id); }
 
 
-function renderCandProfileContent(id) {
+// ===================== PARTIAL REFRESH HELPERS =====================
+// Refresh just the right panel (interviews/feedback/offers) without touching the PDF
+function refreshRightPanel(id) {
   const c = getCand(id);
   if(!c) return;
-  const job = getJob(c.jobId);
+  if(!document.getElementById('page-candprofile').classList.contains('active')) return;
+
   const allInterviews = c.interviews || [];
   const allFeedback = c.feedback || [];
-  const stars = Array(5).fill(0).map((_,i)=>`<span style="color:${i<(c.rating||0)?'var(--amber)':'var(--border2)'};font-size:15px;cursor:pointer" onclick="rateCand(${c.id},${i+1})">${i<(c.rating||0)?'★':'☆'}</span>`).join('');
 
-  // Group feedback by round
-  const feedbackByRound = {};
-  allFeedback.forEach(fb=>{ if(!feedbackByRound[fb.round]) feedbackByRound[fb.round]=[]; feedbackByRound[fb.round].push(fb); });
-
-  const el = document.getElementById('candprofile-content');
-  el.style.height = 'calc(100vh - 56px)';
-  el.style.display = 'flex';
-  el.style.flexDirection = 'column';
-  el.style.overflow = 'hidden';
-
-  el.innerHTML = `
-  <!-- TOPBAR -->
-  <div style="padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg2);flex-shrink:0;flex-wrap:wrap;">
-    <span style="cursor:pointer;color:var(--text3);font-size:13px;display:flex;align-items:center;gap:4px" onclick="showPage('candidates',document.querySelector('.nav-item:nth-child(4)'))">← Candidates</span>
-    <span style="color:var(--border2)">›</span>
-    <span style="font-size:13px;color:var(--accent);cursor:pointer" onclick="showPage('jobs',null);setTimeout(()=>openJobDetail(${c.jobId}),100)">${job?job.title:'Job'}</span>
-    <span style="color:var(--border2)">›</span>
-    <span style="font-size:13px;font-weight:600">${c.name}</span>
-    <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">
-      <button class="btn btn-ghost btn-sm" onclick="openEditCandidate(${c.id})">✏️ Edit</button>
-      <button class="btn btn-ghost btn-sm" onclick="openEditNotes(${c.id})">📝 Note</button>
-      <button class="btn btn-ghost btn-sm" onclick="openScheduleInterview(${c.id})">📅 Schedule Interview</button>
-      <button class="btn btn-ghost btn-sm" onclick="openCreateOffer(${c.id})">📄 Offer</button>
-      <button class="btn btn-ghost btn-sm" onclick="openCandInNewTab(${c.id})" title="Open in new tab">↗ New Tab</button>
-      <button class="btn btn-primary btn-sm" onclick="openMoveStage(${c.id})">Move Stage ↕</button>
-      <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:var(--red-dim)" onclick="rejectCandidate(${c.id})">✕ Reject</button>
-    </div>
-  </div>
-
-  <!-- MAIN LAYOUT -->
-  <div style="display:grid;grid-template-columns:1fr 420px;flex:1;overflow:hidden;min-height:0;">
-
-    <!-- LEFT: Resume + Info -->
-    <div id="cp-left-panel" style="overflow-y:auto;border-right:1px solid var(--border);display:flex;flex-direction:column;">
-
-      <!-- Candidate header -->
-      <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:14px;">
-          <div style="width:68px;height:68px;border-radius:50%;background:${c.color}33;color:${c.color};display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;flex-shrink:0;">${c.initials}</div>
-          <div style="flex:1;">
-            <div style="font-size:18px;font-weight:800;margin-bottom:4px;">${c.name}
-              <span style="font-size:13px;font-weight:400;color:var(--text3);margin-left:8px;">${stars}</span>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
-              ${c.source?`<span class="badge badge-amber" style="font-size:11px">${c.source}</span>`:''}
-              <span class="badge ${stageBadge[c.stage]}">${c.stage}</span>
-              ${c.hasResume?`<span class="badge badge-gray">📄 Resume</span>`:''}
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--text3);">
-              ${c.exp?`<span>💼 ${c.exp}</span>`:''}
-              ${c.location?`<span>📍 ${c.location}</span>`:''}
-              ${c.applied?`<span>📅 Applied ${c.applied}</span>`:''}
-            </div>
-          </div>
-        </div>
-
-        <!-- Contact row -->
-        <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:12px;padding:10px 0;border-top:1px solid var(--border);">
-          ${c.phone?`<a href="tel:${c.phone}" style="color:var(--accent);display:flex;align-items:center;gap:4px;">📞 ${c.phone}</a>`:''}
-          ${c.email?`<a href="mailto:${c.email}" style="color:var(--accent);display:flex;align-items:center;gap:4px;">✉️ ${c.email}</a>`:''}
-          ${c.currentTitle?`<span style="color:var(--text2)">🏢 ${c.currentTitle}</span>`:''}
-        </div>
-
-        <!-- Action buttons (like Lark) -->
-        <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;">
-          ${c.stage!=='Rejected'?`<button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:var(--red-dim)" onclick="rejectCandidate(${c.id})">Reject</button>`:''}
-          <button class="btn btn-ghost btn-sm" onclick="shareCandidate(${c.id})">Share</button>
-          <button class="btn btn-ghost btn-sm" onclick="openScheduleInterview(${c.id})">Schedule Interview</button>
-          <button class="btn btn-primary btn-sm" onclick="openMoveStage(${c.id})">Move Stage</button>
-          ${c.stage!=='Offer'&&c.stage!=='Hired'?`<button class="btn btn-ghost btn-sm" onclick="openCreateOffer(${c.id})">Create Offer</button>`:''}
-        </div>
-      </div>
-
-      <!-- Tabs -->
-      <div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;">
-        <div class="cp-tab active" onclick="switchLeftTab(this,'lt-resume')">Resume Files ${c.hasResume?'(1)':'(0)'}</div>
-        <div class="cp-tab" onclick="switchLeftTab(this,'lt-details')">Details</div>
-        <div class="cp-tab" onclick="switchLeftTab(this,'lt-extra')">Additional Info</div>
-        <div class="cp-tab" onclick="switchLeftTab(this,'lt-history')">Action History</div>
-      </div>
-
-      <!-- TAB: Resume -->
-      <div id="lt-resume" class="cp-tab-content active" style="flex:1;flex-direction:column;overflow:hidden;">
-        ${c.hasResume ? `
-          <!-- Resume toolbar -->
-          <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;">
-            <span style="font-size:13px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ${c.resumeFilename||'Resume'}</span>
-            <!-- Page controls -->
-            <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:4px 8px;">
-              <button onclick="pdfPrevPage()" class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:14px;" title="Previous page">‹</button>
-              <span style="font-size:12px;font-family:'JetBrains Mono';color:var(--text2);">
-                <span id="pdf-page-num">1</span> / <span id="pdf-page-total">–</span>
-              </span>
-              <button onclick="pdfNextPage()" class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:14px;" title="Next page">›</button>
-            </div>
-            <!-- Zoom controls -->
-            <div style="display:flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:4px 8px;">
-              <button onclick="pdfZoomOut()" class="btn btn-ghost btn-sm" style="padding:2px 8px;" title="Zoom out">−</button>
-              <span id="pdf-zoom-label" style="font-size:12px;font-family:'JetBrains Mono';color:var(--text2);min-width:40px;text-align:center;">100%</span>
-              <button onclick="pdfZoomIn()" class="btn btn-ghost btn-sm" style="padding:2px 8px;" title="Zoom in">+</button>
-              <button onclick="pdfZoomFit()" class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;" title="Fit to width">⊡</button>
-            </div>
-            <button class="btn btn-ghost btn-sm" onclick="downloadResume(${c.id})" title="Download">⬇</button>
-            <button class="btn btn-ghost btn-sm" onclick="viewResume(${c.id})" title="Open in new tab">↗</button>
-          </div>
-
-          <!-- PDF canvas container -->
-          <div id="pdf-container" style="flex:1;overflow:auto;background:#525659;display:flex;flex-direction:column;align-items:center;padding:16px;gap:12px;">
-            <div style="text-align:center;color:#ccc;padding:40px;">
-              <div style="font-size:32px;margin-bottom:10px;">⏳</div>
-              <div style="font-size:14px;">Loading resume...</div>
-            </div>
-          </div>`
-        : `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);padding:40px;">
-            <div style="font-size:48px;margin-bottom:12px;">📂</div>
-            <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">No resume uploaded</div>
-            <div style="font-size:12px;margin-bottom:16px;">Edit this candidate to upload their resume</div>
-            <button class="btn btn-primary" onclick="openEditCandidate(${c.id})">Upload Resume</button>
-          </div>`}
-      </div>
-
-      <!-- TAB: Details -->
-      <div id="lt-details" class="cp-tab-content" style="padding:20px 24px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-          <div><div class="cp-field-label">Full Name</div><div class="cp-field-val">${c.name}</div></div>
-          <div><div class="cp-field-label">Email</div><div class="cp-field-val"><a href="mailto:${c.email}" style="color:var(--accent)">${c.email||'–'}</a></div></div>
-          <div><div class="cp-field-label">Phone</div><div class="cp-field-val">${c.phone||'–'}</div></div>
-          <div><div class="cp-field-label">Location</div><div class="cp-field-val">${c.location||'–'}</div></div>
-          <div><div class="cp-field-label">Experience</div><div class="cp-field-val">${c.exp||'–'}</div></div>
-          <div><div class="cp-field-label">Current Title</div><div class="cp-field-val">${c.currentTitle||'–'}</div></div>
-          <div><div class="cp-field-label">Source</div><div class="cp-field-val">${c.source||'–'}</div></div>
-          <div><div class="cp-field-label">Applied Date</div><div class="cp-field-val">${c.applied||'–'}</div></div>
-        </div>
-        <div style="margin-bottom:16px;"><div class="cp-field-label" style="margin-bottom:6px;">Skills</div>
-          <div class="skill-tags">${(c.skills||[]).map(s=>`<span class="skill-tag">${s}</span>`).join('')||'<span style="color:var(--text3);font-size:12px">None</span>'}</div>
-        </div>
-        <div style="margin-bottom:16px;"><div class="cp-field-label" style="margin-bottom:6px;">AI Match Score</div>
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span style="font-size:28px;font-weight:800;font-family:'JetBrains Mono';color:${c.score>=80?'var(--green)':c.score>=60?'var(--amber)':'var(--red)'}">${c.score}</span>
-            <div style="flex:1;"><div class="score-bar" style="height:6px;"><div class="score-fill" style="width:${c.score}%;background:${c.score>=80?'var(--green)':c.score>=60?'var(--amber)':'var(--red)'}"></div></div>
-            <div style="font-size:11px;color:var(--text3);margin-top:3px;">${c.score>=80?'Strong match':c.score>=60?'Moderate match':'Weak match'}</div></div>
-          </div>
-        </div>
-        <!-- NOTES SECTION — inline, timestamped, editable -->
-        <div id="notes-section-${c.id}">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <div class="cp-field-label">Notes</div>
-            <button class="btn btn-primary btn-sm" onclick="openAddNote(${c.id})">+ Add Note</button>
-          </div>
-          ${renderNotesList(c)}
-        </div>
-      </div>
-
-      <!-- TAB: Additional Info -->
-      <div id="lt-extra" class="cp-tab-content" style="padding:20px 24px;">
-        <div style="color:var(--text3);font-size:13px;text-align:center;padding:32px 0;">
-          <div style="font-size:32px;margin-bottom:10px;">📋</div>
-          Additional information like cover letter, portfolio links, or custom fields can be added by editing the candidate.
-          <div style="margin-top:16px;"><button class="btn btn-primary btn-sm" onclick="openEditCandidate(${c.id})">Edit Candidate</button></div>
-        </div>
-      </div>
-
-      <!-- TAB: Action History -->
-      <div id="lt-history" class="cp-tab-content" style="padding:0;">
-        <div class="history-item" style="padding:14px 24px;border-bottom:1px solid var(--border);">
-          <div class="history-dot" style="background:var(--accent-dim);color:var(--accent);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">📥</div>
-          <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Application received</div><div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono';">${c.applied}</div></div>
-        </div>
-        ${(c.timeline||[]).slice().reverse().map(t=>`
-          <div class="history-item" style="padding:14px 24px;border-bottom:1px solid var(--border);">
-            <div class="history-dot" style="background:${t.color}22;color:${t.color};width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">●</div>
-            <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${t.title}</div><div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono';">${t.date}</div></div>
-          </div>`).join('')}
-        ${allInterviews.map(iv=>`
-          <div class="history-item" style="padding:14px 24px;border-bottom:1px solid var(--border);">
-            <div class="history-dot" style="background:var(--accent-dim);color:var(--accent);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">📅</div>
-            <div style="flex:1;"><div style="font-size:13px;font-weight:600;">${iv.round} with ${iv.interviewer}</div><div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono';">${iv.date} · ${iv.time} · <span style="color:${iv.status==='Completed'?'var(--green)':iv.status==='Cancelled'?'var(--red)':'var(--accent)'}">${iv.status}</span></div></div>
-          </div>`).join('')}
-        ${allFeedback.map(fb=>`
-          <div class="history-item" style="padding:14px 24px;border-bottom:1px solid var(--border);">
-            <div class="history-dot" style="background:var(--purple-dim);color:var(--purple);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">📝</div>
-            <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Feedback by ${fb.interviewer} — <span style="color:${fb.recommendation==='Strong Yes'||fb.recommendation==='Yes'?'var(--green)':fb.recommendation==='No'||fb.recommendation==='Strong No'?'var(--red)':'var(--amber)'}">${fb.recommendation}</span></div><div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono';">${fb.round} · ${formatDateTime(fb.createdAt||fb.date)}</div></div>
-          </div>`).join('')}
-      </div>
-    </div>
-
-    <!-- RIGHT: Hiring stages + Interviews + Feedback -->
-    <div style="overflow-y:auto;background:var(--bg2);display:flex;flex-direction:column;">
-
-      <!-- Job info bar -->
-      <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--bg3);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-          <span style="font-size:13px;font-weight:700;cursor:pointer;color:var(--accent);" onclick="showPage('jobs',null);setTimeout(()=>openJobDetail(${c.jobId}),100)">${job?job.title:'Unknown Job'}</span>
-          <span class="badge ${job&&job.status==='Active'?'badge-green':job&&job.status==='Paused'?'badge-amber':'badge-gray'}" style="font-size:10px">${job?job.status:'–'}</span>
-        </div>
-        <div style="font-size:11px;color:var(--text3);">${job?job.dept:''} · ${job?job.location:''} · Applied ${c.applied}</div>
-      </div>
-
-      <!-- Stage tracker (visual pipeline) -->
-      <div style="padding:14px 16px;border-bottom:1px solid var(--border);">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:10px;">Hiring Stage</div>
-        <div style="display:flex;align-items:center;gap:0;overflow-x:auto;padding-bottom:4px;">
-          ${stages.filter(s=>s!=='Rejected').map((s,i,arr)=>{
-            const isActive = c.stage===s;
-            const isPast = stages.indexOf(c.stage) > stages.indexOf(s) && c.stage!=='Rejected';
-            return `<div style="display:flex;align-items:center;flex-shrink:0;">
-              <div onclick="quickMoveStage(${c.id},'${s}')" style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:0 4px;">
-                <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
-                  background:${isActive?stageColors[s]:isPast?'var(--green-dim)':'var(--bg4)'};
-                  color:${isActive?stageColors[s]:isPast?'var(--green)':'var(--text3)'};
-                  border:2px solid ${isActive?stageColors[s]:isPast?'var(--green)':'var(--border)'};
-                  transition:all 0.2s;">${isPast?'✓':i+1}</div>
-                <div style="font-size:9px;color:${isActive?stageColors[s]:'var(--text3)'};font-weight:${isActive?'700':'400'};white-space:nowrap;">${s}</div>
-              </div>
-              ${i<arr.length-1?`<div style="width:16px;height:2px;background:${isPast?'var(--green)':'var(--border)'};flex-shrink:0;margin-bottom:14px;"></div>`:''}</div>`;
-          }).join('')}
-        </div>
-      </div>
-
-      <!-- Similar candidates -->
-      <div style="padding:12px 16px;border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
-          <div style="font-size:12px;font-weight:600;color:var(--text2);">👥 Similar candidates (${candidates.filter(x=>x.id!==c.id&&x.jobId===c.jobId).length})</div>
-          <span style="color:var(--text3);">▾</span>
-        </div>
-        <div style="display:none;margin-top:10px;">
-          ${candidates.filter(x=>x.id!==c.id&&x.jobId===c.jobId).slice(0,4).map(x=>`
-            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;border-bottom:1px solid var(--border);" onclick="openCandProfile(${x.id})">
-              <div style="width:26px;height:26px;border-radius:50%;background:${x.color}33;color:${x.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">${x.initials}</div>
-              <div style="flex:1;font-size:12px;font-weight:600;">${x.name}</div>
-              <span class="badge ${stageBadge[x.stage]}" style="font-size:10px">${x.stage}</span>
-            </div>`).join('')||'<div style="color:var(--text3);font-size:12px;">None</div>'}
-        </div>
-      </div>
-
-      <!-- INTERVIEWS SECTION (Lark-style per round) -->
-      <div style="padding:14px 16px;border-bottom:1px solid var(--border);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <div style="font-size:13px;font-weight:700;">Interviews</div>
-          <button class="btn btn-primary btn-sm" onclick="openScheduleInterview(${c.id})">+ Schedule</button>
-        </div>
-
-        ${allInterviews.length===0?`<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px;">No interviews scheduled yet</div>`:''}
-
-        ${allInterviews.map((iv,i)=>{
-          const ivFeedback = allFeedback.filter(fb=>fb.round===iv.round);
-          return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;">
-            <!-- Interview header -->
-            <div style="padding:12px 14px;display:flex;align-items:flex-start;gap:10px;">
-              <div style="width:32px;height:32px;border-radius:50%;background:${iv.status==='Completed'?'var(--green-dim)':iv.status==='Cancelled'?'var(--red-dim)':'var(--accent-dim)'};color:${iv.status==='Completed'?'var(--green)':iv.status==='Cancelled'?'var(--red)':'var(--accent)'};display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;">👤</div>
-              <div style="flex:1;">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
-                  <span style="font-size:13px;font-weight:700;">${iv.interviewer}</span>
-                  <span style="font-size:11px;color:var(--text3);">📋 ${iv.round}</span>
-                  <span class="badge ${iv.status==='Completed'?'badge-green':iv.status==='Cancelled'?'badge-red':'badge-blue'}" style="font-size:10px;margin-left:auto;">${iv.status||'Scheduled'}</span>
-                </div>
-                <div style="font-size:11px;color:var(--text3);">${iv.type} · ${iv.date} ${iv.time} · ${iv.duration||'1 hour'}</div>
-                ${iv.location?`<div style="font-size:11px;color:var(--text3);">📍 ${iv.location}</div>`:''}
-              </div>
-            </div>
-
-            <!-- Feedback for this round -->
-            ${ivFeedback.map(fb=>`
-              <div style="border-top:1px solid var(--border);padding:12px 14px;">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                  <span style="font-size:12px;font-weight:700;">Notes:</span>
-                  <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-                    <span class="badge ${fb.recommendation==='Strong Yes'?'badge-green':fb.recommendation==='Yes'?'badge-blue':fb.recommendation==='No'||fb.recommendation==='Strong No'?'badge-red':'badge-amber'}" style="font-size:10px;">${fb.recommendation}</span>
-                    <div style="display:flex;gap:1px;">${Array(5).fill(0).map((_,i)=>`<span style="color:${i<fb.rating?'var(--amber)':'var(--border2)'};font-size:12px;">${i<fb.rating?'★':'☆'}</span>`).join('')}</div>
-                  </div>
-                </div>
-                ${fb.notes?`<div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:8px;">${fb.notes}</div>`:''}
-                ${fb.strengths?`<div style="margin-bottom:4px;"><span style="font-size:11px;font-weight:700;color:var(--green);">Pros: </span><span style="font-size:12px;color:var(--text2);">${fb.strengths}</span></div>`:''}
-                ${fb.concerns?`<div><span style="font-size:11px;font-weight:700;color:var(--red);">Cons: </span><span style="font-size:12px;color:var(--text2);">${fb.concerns}</span></div>`:''}
-                ${fb.skillRatings?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">${Object.entries(fb.skillRatings).map(([skill,r])=>`<span style="background:var(--bg4);border-radius:4px;padding:2px 7px;font-size:10px;color:var(--text2);">${skill}: <strong style="color:${r>=4?'var(--green)':r>=3?'var(--amber)':'var(--red)'}">${r}/5</strong></span>`).join('')}</div>`:''}
-              </div>`).join('')}
-
-            <!-- Per-interview actions -->
-            <div style="border-top:1px solid var(--border);padding:8px 14px;display:flex;gap:6px;">
-              <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openAddFeedbackRound(${c.id},'${iv.round}','${iv.interviewer}')">📝 Add Feedback</button>
-              ${iv.status!=='Completed'?`<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="markInterviewDone(${c.id},${i});renderCandProfileContent(${c.id})">✓ Mark Done</button>`:''}
-              ${iv.status!=='Cancelled'?`<button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--red);" onclick="cancelInterview(${c.id},${i});renderCandProfileContent(${c.id})">✕ Cancel</button>`:''}
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-
-      <!-- OFFERS SECTION -->
-      ${offers.filter(o=>o.candidateId===c.id).length?`
-      <div style="padding:14px 16px;border-bottom:1px solid var(--border);">
-        <div style="font-size:13px;font-weight:700;margin-bottom:10px;">📄 Offers</div>
-        ${offers.filter(o=>o.candidateId===c.id).map((o,oi)=>`
-          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-              <span style="font-weight:700;font-size:14px;">${o.salary}</span>
-              <span class="badge ${o.status==='Accepted'?'badge-green':o.status==='Rejected'?'badge-red':'badge-amber'}">${o.status}</span>
-            </div>
-            <div style="font-size:12px;color:var(--text3);">Start: ${o.startDate||'–'} · Bonus: ${o.bonus||'–'}</div>
-            ${o.status==='Pending'?`<div style="display:flex;gap:6px;margin-top:8px;">
-              <button class="btn btn-primary btn-sm" onclick="updateOfferStatusProfile(${c.id},'Accepted');renderCandProfileContent(${c.id})">✓ Accepted</button>
-              <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="updateOfferStatusProfile(${c.id},'Rejected');renderCandProfileContent(${c.id})">✕ Rejected</button>
-            </div>`:''}
-          </div>`).join('')}
-      </div>`:''}
-
-      <!-- ADD FEEDBACK (standalone, no interview) -->
-      <div style="padding:14px 16px;">
-        <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="openAddFeedback(${c.id})">+ Add General Feedback / Note</button>
-      </div>
-
-    </div>
-  </div>`;
-
-  // Load PDF inline if candidate has resume
-  if(c.hasResume) {
-    setTimeout(()=>loadInlinePdf(id), 200);
+  // Find the right panel
+  const rightPanel = document.getElementById('cp-right-panel');
+  if(!rightPanel) {
+    // If panel doesn't have ID yet, do full reload
+    renderCandProfileContent(id);
+    return;
   }
+
+  // Rebuild interviews section
+  const ivSection = document.getElementById('cp-interviews-section');
+  if(ivSection) ivSection.innerHTML = buildInterviewsHTML(c, allInterviews, allFeedback);
+
+  // Update interview count in tab
+  const tabs = document.querySelectorAll('.cp-right-tab');
+  tabs.forEach(t=>{ if(t.dataset.tab==='cp-interviews') t.textContent=`Interviews (${allInterviews.length})`; });
+
+  // Update feedback tab count
+  tabs.forEach(t=>{ if(t.dataset.tab==='cp-feedback') t.textContent=`Feedback (${allFeedback.length})`; });
+
+  // Update stage tracker
+  const stageTracker = document.getElementById('cp-stage-tracker');
+  if(stageTracker) stageTracker.innerHTML = buildStageTrackerHTML(c);
+
+  // Update action history
+  const history = document.getElementById('cp-history-content');
+  if(history) history.innerHTML = buildHistoryHTML(c, allInterviews, allFeedback);
+}
+
+// Rebuild stage tracker HTML
+function buildStageTrackerHTML(c) {
+  const enabledStages = stages.filter(s=>s!=='Rejected');
+  return enabledStages.map((s,i,arr)=>{
+    const isActive = c.stage===s;
+    const isPast = stages.indexOf(c.stage) > stages.indexOf(s) && c.stage!=='Rejected';
+    return `<div style="display:flex;align-items:center;flex-shrink:0;">
+      <div onclick="quickMoveStage(${c.id},'${s}')" style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:0 4px;">
+        <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+          background:${isActive?stageColors[s]:isPast?'var(--green-dim)':'var(--bg4)'};
+          color:${isActive?stageColors[s]:isPast?'var(--green)':'var(--text3)'};
+          border:2px solid ${isActive?stageColors[s]:isPast?'var(--green)':'var(--border)'};
+          transition:all 0.2s;">${isPast?'✓':i+1}</div>
+        <div style="font-size:9px;color:${isActive?stageColors[s]:'var(--text3)'};font-weight:${isActive?'700':'400'};white-space:nowrap;">${s}</div>
+      </div>
+      ${i<arr.length-1?`<div style="width:16px;height:2px;background:${isPast?'var(--green)':'var(--border)'};flex-shrink:0;margin-bottom:14px;"></div>`:''}</div>`;
+  }).join('');
+}
+
+// Lark-style interviews + feedback — uses string concat to avoid nested backtick issues
+function buildInterviewsHTML(c, allInterviews, allFeedback) {
+  const colors = ['#4f8ef7','#a78bfa','#34d399','#fbbf24','#f472b6','#fb7185','#06b6d4','#c084fc'];
+  let html = '<div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">';
+  html += '<div style="font-size:13px;font-weight:700;">Interviews</div>';
+  html += '<button class="btn btn-primary btn-sm" onclick="openScheduleInterview(' + c.id + ')">+ Schedule</button></div>';
+
+  if (!allInterviews.length) {
+    html += '<div style="text-align:center;padding:32px;color:var(--text3);font-size:12px;">No interviews scheduled yet</div>';
+    return html;
+  }
+
+  allInterviews.forEach((iv, idx) => {
+    const ivFeedback = allFeedback.filter(fb => fb.round === iv.round);
+    const ac = colors[idx % colors.length];
+    const initials = (iv.interviewer||'?').split(',')[0].trim().split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase() || '?';
+    const statusBadge = iv.status==='Completed'?'badge-green':iv.status==='Cancelled'?'badge-red':'badge-blue';
+
+    html += '<div style="border-bottom:1px solid var(--border);">';
+
+    // — Interview header row (Lark style)
+    html += '<div style="padding:14px 16px;display:flex;align-items:center;gap:12px;">';
+    html += '<div style="width:36px;height:36px;border-radius:50%;background:' + ac + '33;color:' + ac + ';display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">' + initials + '</div>';
+    html += '<div style="flex:1;min-width:0;">';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap;">';
+    html += '<span style="font-size:13px;font-weight:700;">' + (iv.interviewer||'TBD') + '</span>';
+    html += '<span style="background:var(--bg4);border:1px solid var(--border);border-radius:4px;padding:1px 8px;font-size:11px;color:var(--text2);">📋 ' + (iv.round||'Interview') + '</span>';
+    html += '</div>';
+    html += '<div style="font-size:12px;color:var(--text3);">' + (iv.type||'Video Call') + ' &nbsp;·&nbsp; ' + iv.date + ' (' + iv.time + ')' + (iv.duration?' &nbsp;·&nbsp; ' + iv.duration:'') + '</div>';
+    if (iv.location) html += '<div style="font-size:11px;color:var(--accent);margin-top:2px;">📍 ' + iv.location + '</div>';
+    html += '</div>';
+    html += '<span class="badge ' + statusBadge + '">' + (iv.status||'Scheduled') + '</span>';
+    html += '</div>';
+
+    // — Feedback cards (one per interviewer, Lark style)
+    if (ivFeedback.length) {
+      ivFeedback.forEach((fb, fi) => {
+        const fc = colors[(idx + fi + 1) % colors.length];
+        const fbInit = (fb.interviewer||'?').split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+        const recOk = fb.recommendation==='Strong Yes'||fb.recommendation==='Yes';
+        const recBad = fb.recommendation==='No'||fb.recommendation==='Strong No';
+        const recColor = recOk?'var(--green)':recBad?'var(--red)':'var(--amber)';
+        const recIcon = recOk?'✅ Approved':recBad?'❌ Rejected':'🤔 Maybe';
+        const starHTML = Array(5).fill(0).map((_,i)=>'<span style="color:' + (i<fb.rating?'#fbbf24':'var(--border2)') + ';font-size:12px;">' + (i<fb.rating?'★':'☆') + '</span>').join('');
+
+        html += '<div style="margin:0 0 0 0;border-top:1px solid var(--border);background:var(--bg2);">';
+        // Feedback header
+        html += '<div style="padding:10px 16px;display:flex;align-items:center;gap:10px;">';
+        html += '<div style="width:30px;height:30px;border-radius:50%;background:' + fc + '33;color:' + fc + ';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">' + fbInit + '</div>';
+        html += '<div style="flex:1;">';
+        html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
+        html += '<span style="font-size:12px;font-weight:700;">' + (fb.interviewer||'Interviewer') + '</span>';
+        html += '<span style="background:var(--bg3);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--text3);">📋 ' + (fb.round||'') + '</span>';
+        html += '</div>';
+        html += '<div style="font-size:10px;color:var(--text3);margin-top:1px;">' + formatDateTime(fb.createdAt||fb.date) + '</div>';
+        html += '</div>';
+        html += '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">';
+        html += '<div style="display:flex;gap:1px;">' + starHTML + '</div>';
+        html += '<span style="font-size:11px;font-weight:700;color:' + recColor + ';">' + recIcon + '</span>';
+        html += '</div>';
+        html += '</div>';
+
+        // Feedback body — Notes / Pros / Cons exactly like Lark
+        html += '<div style="padding:4px 16px 12px;">';
+        if (fb.notes) {
+          html += '<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:3px;">Notes:</div>';
+          html += '<div style="font-size:13px;color:var(--text);line-height:1.8;margin-bottom:8px;">' + fb.notes.replace(/\n/g,'<br>') + '</div>';
+        }
+        if (fb.strengths) {
+          html += '<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:3px;">Pros:</div>';
+          fb.strengths.split('\n').filter(l=>l.trim()).forEach(l => {
+            html += '<div style="font-size:13px;color:var(--text);line-height:1.8;">- ' + l.replace(/^[-•*]\s*/,'') + '</div>';
+          });
+          html += '<div style="margin-bottom:6px;"></div>';
+        }
+        if (fb.concerns) {
+          html += '<div style="font-size:12px;font-weight:700;color:var(--text3);margin-bottom:3px;">Cons:</div>';
+          fb.concerns.split('\n').filter(l=>l.trim()).forEach(l => {
+            html += '<div style="font-size:13px;color:var(--text);line-height:1.8;">- ' + l.replace(/^[-•*]\s*/,'') + '</div>';
+          });
+          html += '<div style="margin-bottom:6px;"></div>';
+        }
+        if (fb.skillRatings && Object.keys(fb.skillRatings).length) {
+          html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">';
+          Object.entries(fb.skillRatings).forEach(([sk, r]) => {
+            const rc = r>=4?'var(--green)':r>=3?'var(--amber)':'var(--red)';
+            html += '<span style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:10px;">' + sk + ': <b style="color:' + rc + '">' + r + '/5</b></span>';
+          });
+          html += '</div>';
+        }
+        html += '</div>'; // end feedback body
+        html += '</div>'; // end feedback card
+      });
+    } else {
+      html += '<div style="padding:8px 16px 10px;font-size:12px;color:var(--text3);border-top:1px solid var(--border);">No feedback submitted for this round yet</div>';
+    }
+
+    // Action buttons
+    html += '<div style="padding:8px 16px 12px;display:flex;gap:6px;background:var(--bg3);">';
+    html += '<button class="btn btn-primary btn-sm" onclick="openAddFeedbackRound(' + c.id + ',\'' + iv.round.replace(/'/g,"\\'") + '\',\'' + (iv.interviewer||'').split(',')[0].trim().replace(/'/g,"\\'") + '\')">📝 Add Feedback</button>';
+    if (iv.status !== 'Completed') html += '<button class="btn btn-ghost btn-sm" onclick="markInterviewDone(' + c.id + ',' + idx + ');refreshRightPanel(' + c.id + ')">✓ Done</button>';
+    if (iv.status !== 'Cancelled') html += '<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="cancelInterview(' + c.id + ',' + idx + ');refreshRightPanel(' + c.id + ')">✕ Cancel</button>';
+    html += '</div>';
+
+    html += '</div>'; // end interview block
+  });
+
+  return html;
+}
+
+// Build offers HTML
+function buildOffersHTML(c) {
+  const candOffers = offers.filter(o => o.candidateId === c.id);
+  if (!candOffers.length) return '';
+  let html = '<div style="padding:14px 16px;border-bottom:1px solid var(--border);">';
+  html += '<div style="font-size:13px;font-weight:700;margin-bottom:10px;">📄 Offers</div>';
+  candOffers.forEach(o => {
+    const bc = o.status==='Accepted'?'badge-green':o.status==='Rejected'?'badge-red':'badge-amber';
+    html += '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:8px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">';
+    html += '<span style="font-weight:700;font-size:14px;">' + (o.salary||'–') + '</span>';
+    html += '<span class="badge ' + bc + '">' + o.status + '</span>';
+    html += '</div>';
+    html += '<div style="font-size:12px;color:var(--text3);">Start: ' + (o.startDate||'–') + ' · Bonus: ' + (o.bonus||'–') + '</div>';
+    if (o.status === 'Pending') {
+      html += '<div style="display:flex;gap:6px;margin-top:8px;">';
+      html += '<button class="btn btn-primary btn-sm" onclick="updateOfferStatusProfile(' + c.id + ',\'Accepted\');refreshRightPanel(' + c.id + ')">✓ Accept</button>';
+      html += '<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="updateOfferStatusProfile(' + c.id + ',\'Rejected\');refreshRightPanel(' + c.id + ')">✕ Reject</button>';
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+
+// Rebuild action history HTML
+function buildHistoryHTML(c, allInterviews, allFeedback) {
+  let h = '<div class="history-item" style="padding:14px 24px;border-bottom:1px solid var(--border);"><div class="history-dot" style="background:var(--accent-dim);color:var(--accent);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">📥</div><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Application received</div><div style="font-size:11px;color:var(--text3);font-family:JetBrains Mono,monospace;">' + c.applied + '</div></div></div>';
+  (c.timeline||[]).slice().reverse().forEach(t => {
+    h += '<div class="history-item" style="padding:14px 24px;border-bottom:1px solid var(--border);"><div style="background:' + t.color + '22;color:' + t.color + ';width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">●</div><div style="flex:1;"><div style="font-size:13px;font-weight:600;">' + t.title + '</div><div style="font-size:11px;color:var(--text3);font-family:JetBrains Mono,monospace;">' + t.date + '</div></div></div>';
+  });
+  allInterviews.forEach(iv => {
+    const sc = iv.status==='Completed'?'var(--green)':iv.status==='Cancelled'?'var(--red)':'var(--accent)';
+    h += '<div class="history-item" style="padding:14px 24px;border-bottom:1px solid var(--border);"><div style="background:var(--accent-dim);color:var(--accent);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">📅</div><div style="flex:1;"><div style="font-size:13px;font-weight:600;">' + iv.round + ' with ' + iv.interviewer + '</div><div style="font-size:11px;color:var(--text3);font-family:JetBrains Mono,monospace;">' + iv.date + ' · ' + iv.time + ' · <span style="color:' + sc + '">' + iv.status + '</span></div></div></div>';
+  });
+  allFeedback.forEach(fb => {
+    const rc = fb.recommendation==='Strong Yes'||fb.recommendation==='Yes'?'var(--green)':fb.recommendation==='No'||fb.recommendation==='Strong No'?'var(--red)':'var(--amber)';
+    h += '<div class="history-item" style="padding:14px 24px;border-bottom:1px solid var(--border);"><div style="background:var(--purple-dim);color:var(--purple);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;">📝</div><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Feedback by ' + fb.interviewer + ' — <span style="color:' + rc + '">' + fb.recommendation + '</span></div><div style="font-size:11px;color:var(--text3);font-family:JetBrains Mono,monospace;">' + formatDateTime(fb.createdAt||fb.date) + ' · ' + fb.round + '</div></div></div>';
+  });
+  return h;
 }
 
 function switchLeftTab(el, tabId) {
@@ -2830,7 +2908,9 @@ function quickMoveStage(id, stage) {
   addToTimeline(c, `Moved to ${stage}`, stageColors[stage]||'var(--accent)');
   activities.unshift({ text:`<strong>${c.name}</strong> moved to <strong>${stage}</strong>`, time:'Just now', color:stageColors[stage], ts:Date.now() });
   save();
-  renderCandProfileContent(id);
+  // Update stage tracker in place
+  const tracker = document.getElementById('cp-stage-tracker');
+  if(tracker) tracker.innerHTML = buildStageTrackerHTML(c);
   showToast(`Moved to ${stage}!`);
 }
 
@@ -3025,7 +3105,7 @@ function saveInterview(id) {
   activities.unshift({ text:`<strong>${round}</strong> scheduled for <strong>${c.name}</strong> on ${date}`, time:'Just now', color:'var(--accent)', ts:Date.now() });
   save(); closeModal();
   // Go back to profile if we're on it
-  if(document.getElementById('page-candprofile').classList.contains('active')) renderCandProfileContent(id);
+  if(document.getElementById('page-candprofile').classList.contains('active')) refreshRightPanel(id);
   showToast('Interview scheduled! 📅');
 }
 
@@ -3173,8 +3253,10 @@ function saveFeedback(id) {
   c.feedback.push({ interviewer, round, date, rating, recommendation, notes, strengths, concerns, skillRatings, createdAt: new Date().toISOString() });
   addToTimeline(c, `${round} feedback by ${interviewer} — ${recommendation}`, 'var(--purple)');
   activities.unshift({ text:`<strong>${interviewer}</strong> submitted feedback for <strong>${c.name}</strong> — <strong>${recommendation}</strong>`, time:'Just now', color:'var(--purple)', ts:Date.now() });
-  save(); closeModal();
-  if(document.getElementById('page-candprofile').classList.contains('active')) renderCandProfileContent(id);
+  save();
+  closeModal();
+  // Refresh only the right panel to avoid reloading the PDF
+  refreshRightPanel(id);
   showToast(`Feedback saved! ${recommendation==='Strong Yes'||recommendation==='Yes'?'👍':''}`)
 }
 
