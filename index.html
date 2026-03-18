@@ -1582,39 +1582,33 @@ function renderJobs() {
     const prioClass   = j.priority==='High'?'badge-red':j.priority==='Medium'?'badge-amber':'badge-gray';
     const statusClass = j.status==='Active'?'badge-green':j.status==='Paused'?'badge-amber':'badge-gray';
 
-    // Inline chevron funnel — single row
-    const funnelSegments = stages.map((s, i, arr) => {
+    // Clean pill stage boxes — no chevrons
+    const stagePills = stages.map(s => {
       const sc = stageCounts.find(x=>x.s===s);
       const n = sc?.n||0;
       const color = sc?.color||'var(--text3)';
-      const isFirst = i===0, isLast = i===arr.length-1;
-      const clip = isLast
-        ? 'polygon(8px 0%,100% 0%,100% 100%,8px 100%,0% 50%)'
-        : isFirst
-        ? 'polygon(0% 0%,calc(100% - 8px) 0%,100% 50%,calc(100% - 8px) 100%,0% 100%)'
-        : 'polygon(8px 0%,calc(100% - 8px) 0%,100% 50%,calc(100% - 8px) 100%,8px 100%,0% 50%)';
-      const bg = n>0 ? color+'30' : 'var(--bg4)';
-      const textColor = n>0 ? color : 'var(--text3)';
+      const hasData = n > 0;
       return `<div onclick="event.stopPropagation();filterCandsByJob(${j.id},'${s}')"
         title="${s}: ${n} candidate${n!==1?'s':''} — click to view"
-        style="flex:1;height:36px;clip-path:${clip};background:${bg};
-          display:flex;align-items:center;justify-content:center;gap:4px;
-          cursor:pointer;transition:background 0.13s;margin-left:${i>0?'-1px':'0'};
-          min-width:48px;"
-        onmouseover="this.style.background='${color}50'"
-        onmouseout="this.style.background='${bg}'">
-        <span style="font-size:13px;font-weight:800;color:${textColor};">${n}</span>
-        <span style="font-size:9px;font-weight:700;color:${textColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:52px;">${s}</span>
+        style="flex:1;min-width:60px;padding:7px 10px;border-radius:8px;
+          background:${hasData ? color+'20' : 'var(--bg3)'};
+          border:1px solid ${hasData ? color+'50' : 'var(--border)'};
+          display:flex;align-items:center;justify-content:center;gap:5px;
+          cursor:pointer;transition:all 0.13s;"
+        onmouseover="this.style.background='${color}30';this.style.borderColor='${color}80'"
+        onmouseout="this.style.background='${hasData?color+'20':'var(--bg3)'}';this.style.borderColor='${hasData?color+'50':'var(--border)'}'">
+        <span style="font-size:15px;font-weight:800;color:${hasData?color:'var(--text3)'};">${n}</span>
+        <span style="font-size:10px;font-weight:600;color:${hasData?color:'var(--text3)'};white-space:nowrap;">${s}</span>
       </div>`;
     }).join('');
 
-    return `<div class="job-item" onclick="openJobDetail(${j.id})" style="flex-direction:column;align-items:stretch;padding:14px 18px;gap:10px;">
+    return `<div class="job-item" onclick="openJobDetail(${j.id})" style="flex-direction:column;align-items:stretch;padding:16px 20px;gap:12px;">
       <!-- Top row: icon + title + stats -->
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="job-avatar" style="background:${j.color}22;font-size:18px;flex-shrink:0;">${j.icon}</div>
         <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap;">
-            <span style="font-size:13.5px;font-weight:700;">${searchQ?highlightMatch(j.title,searchQ):escapeHtml(j.title)}</span>
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;flex-wrap:wrap;">
+            <span style="font-size:14px;font-weight:700;">${searchQ?highlightMatch(j.title,searchQ):escapeHtml(j.title)}</span>
             <span class="badge ${statusClass}">${j.status}</span>
             <span class="badge ${prioClass}">${j.priority}</span>
           </div>
@@ -1624,24 +1618,25 @@ function renderJobs() {
           </div>
         </div>
         <!-- Mini stats -->
-        <div style="display:flex;gap:14px;font-size:11px;color:var(--text3);flex-shrink:0;text-align:center;">
-          <div><div style="font-size:15px;font-weight:800;color:var(--accent);">${total}</div><div>Total</div></div>
-          <div><div style="font-size:15px;font-weight:800;color:var(--amber);">${intvw}</div><div>Interview</div></div>
-          <div><div style="font-size:15px;font-weight:800;color:var(--purple);">${offer}</div><div>Offer</div></div>
-          <div><div style="font-size:15px;font-weight:800;color:var(--green);">${hired}</div><div>Hired</div></div>
+        <div style="display:flex;gap:18px;font-size:11px;color:var(--text3);flex-shrink:0;text-align:center;">
+          <div><div style="font-size:16px;font-weight:800;color:var(--accent);">${total}</div><div>Total</div></div>
+          <div><div style="font-size:16px;font-weight:800;color:var(--amber);">${intvw}</div><div>Interview</div></div>
+          <div><div style="font-size:16px;font-weight:800;color:var(--purple);">${offer}</div><div>Offer</div></div>
+          <div><div style="font-size:16px;font-weight:800;color:var(--green);">${hired}</div><div>Hired</div></div>
         </div>
       </div>
-      <!-- Chevron funnel row -->
-      <div style="display:flex;align-items:stretch;gap:0;overflow:hidden;border-radius:6px;" onclick="event.stopPropagation()">
-        ${funnelSegments}
+      <!-- Stage pill boxes -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;" onclick="event.stopPropagation()">
+        ${stagePills}
       </div>
     </div>`;
   }).join('');
 
-  // Repopulate dept filter with custom depts
+  // Always repopulate dept filter
   const deptEl = document.getElementById('job-dept-filter');
-  if(deptEl && deptEl.options.length <= 1) {
-    getDepts().forEach(d=>{ const o=document.createElement('option'); o.value=d; o.textContent=d; deptEl.appendChild(o); });
+  if(deptEl) {
+    const current = deptEl.value;
+    deptEl.innerHTML = '<option value="">All Depts</option>' + getDepts().map(d=>`<option value="${d}" ${d===current?'selected':''}>${d}</option>`).join('');
   }
 }
 
@@ -3652,11 +3647,23 @@ function renderCandProfileContent(id) {
   if(!c) return;
   const job = getJob(c.jobId);
   const allInterviews = c.interviews || [];
-  const allFeedback = c.feedback || [];
+  // Sort feedback newest first (issue #3)
+  const allFeedback = (c.feedback || []).slice().sort((a,b)=>new Date(b.createdAt||b.date||0)-new Date(a.createdAt||a.date||0));
   const stars = Array(5).fill(0).map((_,i)=>'<span style="color:' + (i<(c.rating||0)?'var(--amber)':'var(--border2)') + ';font-size:15px;cursor:pointer" onclick="rateCand(' + c.id + ',' + (i+1) + ')">' + (i<(c.rating||0)?'★':'☆') + '</span>').join('');
 
   const el = document.getElementById('candprofile-content');
   el.style.cssText = 'height:calc(100vh - 56px);display:flex;flex-direction:column;overflow:hidden;';
+
+  // Prev/Next navigation — get sorted candidate list from current filter
+  const jobId = _candActiveJobId;
+  const stageF = _candActiveStage;
+  let navList = [...candidates];
+  if(jobId) navList = navList.filter(c2 => getCandJobIds(c2).includes(jobId));
+  if(stageF) navList = navList.filter(c2 => (jobId?getCandStageForJob(c2,jobId):c2.stage)===stageF);
+  navList.sort((a,b)=>new Date(b.applied||0)-new Date(a.applied||0));
+  const navIdx = navList.findIndex(c2=>c2.id===id);
+  const prevCand = navIdx > 0 ? navList[navIdx-1] : null;
+  const nextCand = navIdx < navList.length-1 ? navList[navIdx+1] : null;
 
   // Build left tab contents using string concat to avoid nested backtick issues
   const resumeTab = buildResumeTabHTML(c);
@@ -3671,6 +3678,12 @@ function renderCandProfileContent(id) {
     '<span style="font-size:13px;color:var(--accent);cursor:pointer" onclick="showPage(\'jobs\',null);setTimeout(()=>openJobDetail(' + c.jobId + '),100)">' + (job?job.title:'Job') + '</span>' +
     '<span style="color:var(--border2)">›</span>' +
     '<span style="font-size:13px;font-weight:600">' + c.name + '</span>' +
+    // Prev/Next navigation
+    '<div style="display:flex;align-items:center;gap:4px;margin-left:12px;">' +
+    (prevCand ? '<button class="btn btn-ghost btn-sm" onclick="openCandProfile('+prevCand.id+')" title="'+escapeHtml(prevCand.name)+'">‹ Prev</button>' : '<button class="btn btn-ghost btn-sm" disabled style="opacity:0.3;cursor:not-allowed;">‹ Prev</button>') +
+    '<span style="font-size:11px;color:var(--text3);">' + (navIdx+1) + '/' + navList.length + '</span>' +
+    (nextCand ? '<button class="btn btn-ghost btn-sm" onclick="openCandProfile('+nextCand.id+')" title="'+escapeHtml(nextCand.name)+'">Next ›</button>' : '<button class="btn btn-ghost btn-sm" disabled style="opacity:0.3;cursor:not-allowed;">Next ›</button>') +
+    '</div>' +
     '<div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">' +
     '<button class="btn btn-ghost btn-sm" onclick="openEditCandidate(' + c.id + ')">✏️ Edit</button>' +
     '<button class="btn btn-ghost btn-sm" onclick="openAddNote(' + c.id + ')">📝 Note</button>' +
@@ -7026,6 +7039,7 @@ async function loadFromFirestore(uid) {
     const jobsSnap = await getDocs(collection(db, `users/${uid}/jobs`));
     if(!jobsSnap.empty) {
       jobs = jobsSnap.docs.map(d=>d.data());
+      _firestoreJobIds = new Set(jobsSnap.docs.map(d=>d.id));
     } else {
       // First time — seed with defaults and save
       await seedDefaults(uid);
@@ -7033,7 +7047,10 @@ async function loadFromFirestore(uid) {
 
     // Load candidates
     const candsSnap = await getDocs(collection(db, `users/${uid}/candidates`));
-    if(!candsSnap.empty) candidates = candsSnap.docs.map(d=>d.data());
+    if(!candsSnap.empty) {
+      candidates = candsSnap.docs.map(d=>d.data());
+      _firestoreCandIds = new Set(candsSnap.docs.map(d=>d.id));
+    }
 
     // Load interviews
     const intSnap = await getDocs(collection(db, `users/${uid}/interviews`));
@@ -7095,16 +7112,38 @@ window.save = async () => {
   showSyncing(true);
   try {
     const batch = writeBatch(db);
+
+    // WRITE current data
     jobs.forEach(j => batch.set(doc(db,`users/${uid}/jobs`,String(j.id)), j));
     candidates.forEach(c => batch.set(doc(db,`users/${uid}/candidates`,String(c.id)), c));
     activities.slice(0,20).forEach((a,i) => batch.set(doc(db,`users/${uid}/activities`,String(i)), {...a, ts: a.ts||Date.now()}));
     offers.forEach((o,i) => batch.set(doc(db,`users/${uid}/offers`,String(i)), o));
     projects.forEach((p,i) => batch.set(doc(db,`users/${uid}/projects`,String(p.id||i)), p));
+
+    // DELETE removed jobs — fetch current Firestore job IDs and delete any not in local array
+    const jobIds = new Set(jobs.map(j=>String(j.id)));
+    const storedJobIds = _firestoreJobIds || new Set();
+    storedJobIds.forEach(fid => { if(!jobIds.has(fid)) batch.delete(doc(db,`users/${uid}/jobs`,fid)); });
+
+    // DELETE removed candidates
+    const candIds = new Set(candidates.map(c=>String(c.id)));
+    const storedCandIds = _firestoreCandIds || new Set();
+    storedCandIds.forEach(fid => { if(!candIds.has(fid)) batch.delete(doc(db,`users/${uid}/candidates`,fid)); });
+
     await batch.commit();
+
+    // Update tracked IDs
+    _firestoreJobIds = jobIds;
+    _firestoreCandIds = candIds;
+
   } catch(e) { console.error('Save error', e); showToast('⚠️ Save failed — check connection'); }
   showSyncing(false);
   updateSidebarBadges();
 };
+
+// Track which IDs exist in Firestore so we can delete removed ones
+let _firestoreJobIds = null;
+let _firestoreCandIds = null;
 
 // Save projects to Firebase when saveProjects is called
 window._saveProjects = async () => {
