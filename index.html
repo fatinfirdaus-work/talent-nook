@@ -2049,7 +2049,7 @@ function renderCandidates() {
 
 
 function renderPipeline() {
-  const jobF = document.getElementById('pipe-job-filter').value;
+  const jobF = document.getElementById('pipe-job-filter')?.value;
   const jobId = jobF ? parseInt(jobF) : null;
 
   // Multi-job aware: if a job filter is set, show candidates applied to that job
@@ -2303,12 +2303,12 @@ function openEditOfferModal(idx) {
 }
 
 function saveEditOffer(idx) {
-  offers[idx].salary = document.getElementById('eo-salary').value;
-  offers[idx].bonus = document.getElementById('eo-bonus').value;
-  offers[idx].equity = document.getElementById('eo-equity').value;
-  offers[idx].startDate = document.getElementById('eo-start').value;
-  offers[idx].expiryDate = document.getElementById('eo-expiry').value;
-  offers[idx].notes = document.getElementById('eo-notes').value;
+  offers[idx].salary = document.getElementById('eo-salary')?.value;
+  offers[idx].bonus = document.getElementById('eo-bonus')?.value;
+  offers[idx].equity = document.getElementById('eo-equity')?.value;
+  offers[idx].startDate = document.getElementById('eo-start')?.value;
+  offers[idx].expiryDate = document.getElementById('eo-expiry')?.value;
+  offers[idx].notes = document.getElementById('eo-notes')?.value;
   save(); closeModal(); renderOffers();
   showToast('Offer updated!');
 }
@@ -4240,13 +4240,13 @@ function saveInterviewerName(name) {
 
 function saveInterview(id) {
   const c = getCand(id); if(!c) return;
-  const date = document.getElementById('iv-date').value;
-  const time = document.getElementById('iv-time').value;
-  const round = document.getElementById('iv-round').value;
-  const type = document.getElementById('iv-type').value;
-  const duration = document.getElementById('iv-duration').value;
-  const location = document.getElementById('iv-location').value;
-  const notes = document.getElementById('iv-notes').value;
+  const date = document.getElementById('iv-date')?.value;
+  const time = document.getElementById('iv-time')?.value;
+  const round = document.getElementById('iv-round')?.value;
+  const type = document.getElementById('iv-type')?.value;
+  const duration = document.getElementById('iv-duration')?.value;
+  const location = document.getElementById('iv-location')?.value;
+  const notes = document.getElementById('iv-notes')?.value;
   if(!date) { showToast('Please select a date'); return; }
 
   // Collect all interviewers
@@ -4453,16 +4453,16 @@ function openEditCandidate(id) {
 
 function saveEditCandidate(id) {
   const c = getCand(id); if(!c) return;
-  c.name = document.getElementById('ec-name').value.trim() || c.name;
-  c.email = document.getElementById('ec-email').value.trim();
-  c.phone = document.getElementById('ec-phone').value.trim();
-  c.location = document.getElementById('ec-location').value.trim();
-  c.exp = document.getElementById('ec-exp').value.trim();
-  c.currentTitle = document.getElementById('ec-title').value.trim();
-  c.source = document.getElementById('ec-source').value;
-  c.score = Math.min(100,Math.max(0,parseInt(document.getElementById('ec-score').value)||70));
-  c.jobId = parseInt(document.getElementById('ec-job').value);
-  const skillsRaw = document.getElementById('ec-skills').value;
+  c.name = document.getElementById('ec-name')?.value.trim() || c.name;
+  c.email = document.getElementById('ec-email')?.value.trim();
+  c.phone = document.getElementById('ec-phone')?.value.trim();
+  c.location = document.getElementById('ec-location')?.value.trim();
+  c.exp = document.getElementById('ec-exp')?.value.trim();
+  c.currentTitle = document.getElementById('ec-title')?.value.trim();
+  c.source = document.getElementById('ec-source')?.value;
+  c.score = Math.min(100,Math.max(0,parseInt(document.getElementById('ec-score')?.value)||70));
+  c.jobId = parseInt(document.getElementById('ec-job')?.value);
+  const skillsRaw = document.getElementById('ec-skills')?.value;
   c.skills = skillsRaw ? skillsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
   c.initials = c.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   save(); closeModal(); openCandProfile(id);
@@ -4497,15 +4497,15 @@ function openCreateOffer(id) {
 
 function saveOffer(id) {
   const c = getCand(id); if(!c) return;
-  const salary = document.getElementById('of-salary').value;
+  const salary = document.getElementById('of-salary')?.value;
   if(!salary) { showToast('Please enter salary'); return; }
   const offer = {
     candidateId: id,
-    salary, bonus: document.getElementById('of-bonus').value,
-    equity: document.getElementById('of-equity').value,
-    startDate: document.getElementById('of-start').value,
-    expiryDate: document.getElementById('of-expiry').value,
-    notes: document.getElementById('of-notes').value,
+    salary, bonus: document.getElementById('of-bonus')?.value,
+    equity: document.getElementById('of-equity')?.value,
+    startDate: document.getElementById('of-start')?.value,
+    expiryDate: document.getElementById('of-expiry')?.value,
+    notes: document.getElementById('of-notes')?.value,
     status: 'Pending', sentDate: new Date().toISOString().split('T')[0]
   };
   offers.push(offer);
@@ -6127,9 +6127,7 @@ function exportFullReport() {
   showToast('Report opened — use Ctrl+P / Cmd+P to save as PDF!');
 }
 
-function getResumeData(id) {
-  try { return JSON.parse(localStorage.getItem(`tf_resume_${id}`)); } catch(e) { return null; }
-}
+function getResumeData(id) { try { return JSON.parse(localStorage.getItem(`tf_resume_${id}`)); } catch(e) { return null; } }
 function viewResume(id) {
   const r = getResumeData(id);
   if(!r) { showToast('Resume not found'); return; }
@@ -6957,16 +6955,16 @@ window.signInGoogle = async () => {
 };
 
 window.signInEmail = async () => {
-  const email = document.getElementById('login-email').value.trim();
-  const pass = document.getElementById('login-password').value;
+  const email = document.getElementById('login-email')?.value.trim();
+  const pass = document.getElementById('login-password')?.value;
   try {
     await signInWithEmailAndPassword(auth, email, pass);
   } catch(e) { showLoginError(e.message); }
 };
 
 window.signUpEmail = async () => {
-  const email = document.getElementById('login-email').value.trim();
-  const pass = document.getElementById('login-password').value;
+  const email = document.getElementById('login-email')?.value.trim();
+  const pass = document.getElementById('login-password')?.value;
   if(pass.length < 6) { showLoginError('Password must be at least 6 characters'); return; }
   try {
     await createUserWithEmailAndPassword(auth, email, pass);
