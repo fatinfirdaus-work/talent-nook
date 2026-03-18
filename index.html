@@ -66,7 +66,7 @@
   .user-role { font-size: 10.5px; color: var(--text3); }
 
   /* ── MAIN ── */
-  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+  .main { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; height: 100vh; min-height: 0; overflow: hidden; }
 
   /* ── TOPBAR ── */
   .topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 22px; height: 52px; display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
@@ -90,26 +90,31 @@
   .search-icon { color: var(--text3); font-size: 13px; flex-shrink: 0; }
 
   /* ── CONTENT ── */
-  .content { flex: 1; overflow: hidden; position: relative; }
+  .content { flex: 1; overflow-y: auto; min-height: 0; }
 
   /* ── MISC ── */
   .page { display: none; }
-  .page.active { display: block; position: absolute; inset: 0; overflow: hidden; }
-  /* Scrollable content wrapper inside each page */
-  .page-scroll { position: absolute; inset: 0; overflow-y: auto; padding: 22px; }
-  /* Candidates page: flex row layout for sidebar + table */
-  #page-candidates.active { display: flex; flex-direction: row; }
-  /* Pipeline: scrollable in both axes */
-  #page-pipeline.active .page-scroll { overflow: auto; padding: 0; }
+  .page.active { display: block; }
+  .page-scroll { padding: 22px; }
+
+  /* Candidates: needs flex for sidebar layout */
+  #page-candidates.active { display: flex; height: 100%; overflow: hidden; }
+
+  /* Pipeline: needs horizontal scroll */
+  #page-pipeline.active { display: flex; flex-direction: column; height: 100%; }
+  #page-pipeline.active .page-scroll { flex: 1; overflow: auto; padding: 0; }
   #page-pipeline.active .kanban-wrap { padding: 22px; }
-  /* Jobs: flex for sticky toolbar */
-  #page-jobs.active { display: flex; flex-direction: column; }
+
+  /* Jobs: sticky toolbar */
+  #page-jobs.active { display: flex; flex-direction: column; height: 100%; }
   #page-jobs.active .panel { flex: 1; overflow-y: auto; min-height: 0; }
-  /* Full-screen pages that manage their own scroll */
-  #page-candprofile.active,
-  #page-jobdetail.active,
-  #page-projectdetail.active { display: block; }
-  /* Settings: no extra padding */
+
+  /* Full-screen pages */
+  #page-candprofile.active { height: 100%; overflow: hidden; }
+  #page-jobdetail.active { height: 100%; overflow: hidden; }
+  #page-projectdetail.active { height: 100%; overflow: hidden; }
+
+  /* Settings/Projects: no padding */
   #page-settings.active .page-scroll,
   #page-projects.active .page-scroll { padding: 0; }
 
