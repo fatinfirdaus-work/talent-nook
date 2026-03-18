@@ -360,6 +360,39 @@
   .history-item { display:flex;gap:12px;padding:14px 24px;border-bottom:1px solid var(--border); }
   .history-dot { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px; }
 
+  /* LIGHT THEME */
+  body.theme-light {
+    --bg: #f0f2f7;
+    --bg2: #ffffff;
+    --bg3: #f5f6fa;
+    --bg4: #ebedf5;
+    --border: #e0e3ef;
+    --border2: #c8cce0;
+    --text: #1a1e2e;
+    --text2: #4a5068;
+    --text3: #8b91a8;
+    --accent: #3b72f6;
+    --accent2: #2560e8;
+    --accent-dim: rgba(59,114,246,0.1);
+    --green: #16a34a;
+    --green-dim: rgba(22,163,74,0.1);
+    --amber: #d97706;
+    --amber-dim: rgba(217,119,6,0.1);
+    --red: #dc2626;
+    --red-dim: rgba(220,38,38,0.1);
+    --purple: #7c3aed;
+    --purple-dim: rgba(124,58,237,0.1);
+    --pink: #db2777;
+    --pink-dim: rgba(219,39,119,0.1);
+  }
+  body.theme-light .sidebar { box-shadow:2px 0 12px rgba(0,0,0,0.06); }
+  body.theme-light .panel, body.theme-light .stat-card { box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+  body.theme-light .modal { box-shadow:0 8px 40px rgba(0,0,0,0.15); }
+  body.theme-light .topbar { box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+  body.theme-light .detail-panel { box-shadow:-4px 0 20px rgba(0,0,0,0.1); }
+  body.theme-light .cand-card { box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+  body.theme-light table thead th { background:var(--bg3); }
+
   .login-screen { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column; }
   .login-card { background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:48px 40px;text-align:center;width:100%;max-width:380px;box-shadow:0 24px 80px rgba(0,0,0,0.6); }
   .login-logo { width:52px;height:52px;background:linear-gradient(135deg,#4f8ef7,#a78bfa);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 16px; }
@@ -1645,36 +1678,68 @@ function switchSettingsTab(tabId) {
       </div>`;
 
   } else if(tabId==='s-pipeline') {
+    const customStages = getCustomStages();
+    const s = getSettings();
     el.innerHTML = `
-      <div style="font-size:18px;font-weight:800;margin-bottom:20px;">🔀 Hiring Pipeline</div>
-      <div style="font-size:13px;color:var(--text3);margin-bottom:16px;">Customise the stages candidates move through in your hiring process.</div>
+      <div style="font-size:18px;font-weight:800;margin-bottom:4px;">🔀 Hiring Pipeline</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:20px;">Add, rename, reorder and colour your hiring stages. Changes apply across the whole app.</div>
+
       <div class="panel" style="margin-bottom:16px;">
-        <div class="panel-header"><span class="panel-title">Pipeline Stages</span></div>
-        <div style="padding:20px;display:flex;flex-direction:column;gap:10px;">
-          ${stages.map((s,i)=>`
-            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:8px;">
-              <span style="cursor:grab;color:var(--text3);font-size:18px;">⠿</span>
-              <div style="width:10px;height:10px;border-radius:50%;background:${stageColors[s]};flex-shrink:0;"></div>
-              <span style="font-size:13px;font-weight:600;flex:1;color:${stageColors[s]}">${s}</span>
-              <span style="font-size:12px;color:var(--text3);">${candidates.filter(c=>c.stage===s).length} candidates</span>
-              <label class="toggle-switch"><input type="checkbox" checked><div class="toggle-track"></div></label>
-            </div>`).join('')}
+        <div class="panel-header">
+          <span class="panel-title">Pipeline Stages</span>
+          <button class="btn btn-primary btn-sm" onclick="addCustomStage()">+ Add Stage</button>
+        </div>
+        <div style="padding:12px 16px;background:var(--bg3);border-bottom:1px solid var(--border);">
+          <div style="font-size:11px;color:var(--text3);">💡 Drag to reorder · Click name to rename · Pick a colour · Toggle to hide</div>
+        </div>
+        <div id="stage-editor-list" style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
+          ${customStages.map((st,i)=>renderStageRow(st,i)).join('')}
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="saveCustomStages()">💾 Save Changes</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetStages()">↺ Reset to Default</button>
         </div>
       </div>
+
+      <!-- Live preview -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header"><span class="panel-title">Preview</span></div>
+        <div style="padding:16px 20px;">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">How your pipeline will look</div>
+          <div style="display:flex;align-items:center;gap:0;overflow-x:auto;padding-bottom:4px;" id="stage-preview">
+            ${customStages.filter(st=>st.enabled).map((st,i,arr)=>`
+              <div style="display:flex;align-items:center;flex-shrink:0;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 6px;">
+                  <div style="width:28px;height:28px;border-radius:50%;background:${st.color}22;border:2px solid ${st.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${st.color};">${i+1}</div>
+                  <div style="font-size:10px;font-weight:600;color:${st.color};white-space:nowrap;">${st.name}</div>
+                </div>
+                ${i<arr.length-1?`<div style="width:16px;height:2px;background:var(--border);flex-shrink:0;margin-bottom:12px;"></div>`:''}</div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Auto-move Rules -->
       <div class="panel">
         <div class="panel-header"><span class="panel-title">Auto-move Rules</span></div>
-        <div style="padding:20px;display:flex;flex-direction:column;gap:12px;">
+        <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
           ${[
-            {label:'Move to Screening after application received', checked:s.autoScreening!==false},
-            {label:'Move to Hired automatically when offer is accepted', checked:s.autoHired!==false},
-            {label:'Mark as Rejected after 30 days of no activity', checked:s.autoReject||false},
-          ].map((r,i)=>`
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <span style="font-size:13px;color:var(--text2);">${r.label}</span>
-              <label class="toggle-switch"><input type="checkbox" ${r.checked?'checked':''} onchange="saveSettings({'autoRule${i}':this.checked})"><div class="toggle-track"></div></label>
+            {key:'autoScreening', label:'Auto-move to Screening when candidate is added',     desc:'Skip manual moving for new applications'},
+            {key:'autoHired',     label:'Auto-mark as Hired when offer is accepted',          desc:'Offer accepted → instantly moves to Hired'},
+            {key:'autoReject',    label:'Auto-reject after 30 days of no activity',           desc:'Keeps your pipeline clean automatically'},
+          ].map(r=>`
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+              <div>
+                <div style="font-size:13px;font-weight:600;">${r.label}</div>
+                <div style="font-size:12px;color:var(--text3);margin-top:2px;">${r.desc}</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" ${getSettings()[r.key]!==false?'checked':''} onchange="saveSettings({'${r.key}':this.checked})">
+                <div class="toggle-track"></div>
+              </label>
             </div>`).join('')}
         </div>
       </div>`;
+
 
   } else if(tabId==='s-rounds') {
     el.innerHTML = `
@@ -1808,16 +1873,22 @@ function switchSettingsTab(tabId) {
         <div class="panel-header"><span class="panel-title">Theme</span></div>
         <div style="padding:20px;display:flex;gap:12px;flex-wrap:wrap;">
           ${[
-            {id:'dark',  label:'Dark',       bg:'#0d0f14', accent:'#4f8ef7'},
-            {id:'darker',label:'Deep Black', bg:'#060608', accent:'#4f8ef7'},
-            {id:'blue',  label:'Navy Blue',  bg:'#0a1628', accent:'#60a5fa'},
-            {id:'green', label:'Forest',     bg:'#0a1a0f', accent:'#34d399'},
+            {id:'light',  label:'☀️ Light',      bg:'#f0f2f7', accent:'#3b72f6', text:'#1a1e2e', border:'#e0e3ef'},
+            {id:'dark',   label:'🌙 Dark',        bg:'#0d0f14', accent:'#4f8ef7', text:'#e8eaf0', border:'#2a2f42'},
+            {id:'darker', label:'⬛ Deep Black',  bg:'#060608', accent:'#4f8ef7', text:'#e8eaf0', border:'#1a1c20'},
+            {id:'blue',   label:'🌊 Navy Blue',   bg:'#0a1628', accent:'#60a5fa', text:'#e8eaf0', border:'#1a2a55'},
+            {id:'green',  label:'🌿 Forest',      bg:'#0a1a0f', accent:'#34d399', text:'#e8eaf0', border:'#1a3526'},
           ].map(t=>`
-            <div onclick="applyTheme('${t.id}')" style="cursor:pointer;border:2px solid ${as.theme===t.id?'var(--accent)':'var(--border)'};border-radius:10px;overflow:hidden;width:100px;">
-              <div style="height:50px;background:${t.bg};display:flex;align-items:center;justify-content:center;">
-                <div style="width:20px;height:20px;border-radius:50%;background:${t.accent};"></div>
+            <div onclick="applyTheme('${t.id}')" style="cursor:pointer;border:2px solid ${as.theme===t.id?'var(--accent)':'var(--border)'};border-radius:10px;overflow:hidden;width:110px;transition:all 0.15s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+              <div style="height:52px;background:${t.bg};border-bottom:1px solid ${t.border};display:flex;align-items:center;justify-content:center;gap:5px;padding:8px;">
+                <div style="width:14px;height:14px;border-radius:3px;background:${t.bg==='#f0f2f7'?'#fff':t.bg};border:1px solid ${t.border};"></div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:3px;">
+                  <div style="height:4px;border-radius:2px;background:${t.accent};width:80%;"></div>
+                  <div style="height:3px;border-radius:2px;background:${t.border};width:60%;"></div>
+                  <div style="height:3px;border-radius:2px;background:${t.border};width:40%;"></div>
+                </div>
               </div>
-              <div style="padding:6px;text-align:center;font-size:11px;font-weight:600;background:var(--bg3);">${t.label}</div>
+              <div style="padding:7px 8px;text-align:center;font-size:11px;font-weight:700;background:${t.bg};color:${t.text};">${t.label}</div>
             </div>`).join('')}
         </div>
       </div>
@@ -1915,14 +1986,19 @@ function saveAppearance() {
 }
 
 function applyTheme(id) {
-  const themes = {
-    dark:   { bg:'#0d0f14', bg2:'#13161e', bg3:'#1a1e2a', bg4:'#212636' },
-    darker: { bg:'#060608', bg2:'#0d0f12', bg3:'#131518', bg4:'#1a1c20' },
-    blue:   { bg:'#0a1628', bg2:'#0f1e38', bg3:'#152448', bg4:'#1a2a55' },
-    green:  { bg:'#0a1a0f', bg2:'#0f2218', bg3:'#142a1e', bg4:'#1a3526' },
-  };
-  const t = themes[id]; if(!t) return;
-  Object.entries(t).forEach(([k,v])=>document.documentElement.style.setProperty(`--${k}`,v));
+  document.body.classList.remove('theme-light');
+  ['--bg','--bg2','--bg3','--bg4'].forEach(v=>document.documentElement.style.removeProperty(v));
+  if(id==='light') {
+    document.body.classList.add('theme-light');
+  } else {
+    const themes = {
+      dark:   { bg:'#0d0f14', bg2:'#13161e', bg3:'#1a1e2a', bg4:'#212636' },
+      darker: { bg:'#060608', bg2:'#0d0f12', bg3:'#131518', bg4:'#1a1c20' },
+      blue:   { bg:'#0a1628', bg2:'#0f1e38', bg3:'#152448', bg4:'#1a2a55' },
+      green:  { bg:'#0a1a0f', bg2:'#0f2218', bg3:'#142a1e', bg4:'#1a3526' },
+    };
+    const t = themes[id]; if(t) Object.entries(t).forEach(([k,v])=>document.documentElement.style.setProperty(`--${k}`,v));
+  }
   saveSettings({ theme: id });
   switchSettingsTab('s-appearance');
   showToast('Theme applied!');
@@ -2041,14 +2117,20 @@ function applySavedSettings() {
 }
 
 function applyThemeQuiet(id) {
-  const themes = {
-    dark:{bg:'#0d0f14',bg2:'#13161e',bg3:'#1a1e2a',bg4:'#212636'},
-    darker:{bg:'#060608',bg2:'#0d0f12',bg3:'#131518',bg4:'#1a1c20'},
-    blue:{bg:'#0a1628',bg2:'#0f1e38',bg3:'#152448',bg4:'#1a2a55'},
-    green:{bg:'#0a1a0f',bg2:'#0f2218',bg3:'#142a1e',bg4:'#1a3526'},
-  };
-  const t=themes[id]; if(!t) return;
-  Object.entries(t).forEach(([k,v])=>document.documentElement.style.setProperty(`--${k}`,v));
+  document.body.classList.remove('theme-light');
+  ['--bg','--bg2','--bg3','--bg4'].forEach(v=>document.documentElement.style.removeProperty(v));
+  if(id==='light') {
+    document.body.classList.add('theme-light');
+  } else {
+    const themes = {
+      dark:   { bg:'#0d0f14', bg2:'#13161e', bg3:'#1a1e2a', bg4:'#212636' },
+      darker: { bg:'#060608', bg2:'#0d0f12', bg3:'#131518', bg4:'#1a1c20' },
+      blue:   { bg:'#0a1628', bg2:'#0f1e38', bg3:'#152448', bg4:'#1a2a55' },
+      green:  { bg:'#0a1a0f', bg2:'#0f2218', bg3:'#142a1e', bg4:'#1a3526' },
+    };
+    const t = themes[id];
+    if(t) Object.entries(t).forEach(([k,v])=>document.documentElement.style.setProperty(`--${k}`,v));
+  }
 }
 
 // Legacy stubs for old IDs still referenced
@@ -3379,7 +3461,12 @@ async function parseResume(b64, mimeType, filename) {
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-allow-browser': 'true'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
@@ -3834,8 +3921,150 @@ function showToast(msg) {
   setTimeout(()=>t.remove(), 2500);
 }
 
+// ===================== CUSTOM STAGES =====================
+const DEFAULT_STAGES = [
+  { name:'Applied',   color:'#8b91a8', enabled:true, locked:true  },
+  { name:'Screening', color:'#4f8ef7', enabled:true, locked:false },
+  { name:'Interview', color:'#fbbf24', enabled:true, locked:false },
+  { name:'Offer',     color:'#a78bfa', enabled:true, locked:false },
+  { name:'Hired',     color:'#34d399', enabled:true, locked:true  },
+  { name:'Rejected',  color:'#f87171', enabled:true, locked:true  },
+];
+const STAGE_COLOR_OPTIONS = [
+  '#4f8ef7','#a78bfa','#34d399','#fbbf24','#f87171','#f472b6',
+  '#06b6d4','#fb7185','#84cc16','#c084fc','#8b91a8','#ff8c42',
+  '#00d4aa','#e879f9','#38bdf8','#a3e635',
+];
+
+function getCustomStages() {
+  try { return JSON.parse(localStorage.getItem('tf_custom_stages')||'null') || [...DEFAULT_STAGES]; }
+  catch(e) { return [...DEFAULT_STAGES]; }
+}
+
+function saveCustomStagesToStorage(stageList) {
+  localStorage.setItem('tf_custom_stages', JSON.stringify(stageList));
+  stages.length = 0;
+  Object.keys(stageColors).forEach(k=>delete stageColors[k]);
+  Object.keys(stageBadge).forEach(k=>delete stageBadge[k]);
+  stageList.filter(s=>s.enabled).forEach(s=>{
+    stages.push(s.name);
+    stageColors[s.name] = s.color;
+    const badgeMap = {'#34d399':'badge-green','#4f8ef7':'badge-blue','#fbbf24':'badge-amber','#f87171':'badge-red','#a78bfa':'badge-purple','#8b91a8':'badge-gray','#f472b6':'badge-pink'};
+    stageBadge[s.name] = badgeMap[s.color]||'badge-gray';
+  });
+}
+
+function renderStageRow(st, i) {
+  return `<div class="stage-row" data-index="${i}" draggable="true"
+    ondragstart="stageDragStart(event,${i})" ondragover="stageDragOver(event)" ondrop="stageDrop(event,${i})"
+    style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;transition:all 0.15s;"
+    onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+    <span style="color:var(--text3);font-size:18px;cursor:grab;flex-shrink:0;">⠿</span>
+    <div style="position:relative;flex-shrink:0;">
+      <div onclick="toggleColorPicker(${i})" style="width:22px;height:22px;border-radius:50%;background:${st.color};cursor:pointer;border:2px solid rgba(255,255,255,0.2);transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'"></div>
+      <div id="colorpicker-${i}" style="display:none;position:absolute;top:28px;left:-4px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:10px;z-index:999;grid-template-columns:repeat(4,1fr);gap:5px;width:124px;">
+        ${STAGE_COLOR_OPTIONS.map(c=>`<div onclick="setStageColor(${i},'${c}')" style="width:22px;height:22px;border-radius:50%;background:${c};cursor:pointer;border:2px solid ${st.color===c?'white':'transparent'};transition:transform 0.1s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'"></div>`).join('')}
+      </div>
+    </div>
+    <input type="text" value="${st.name}" onchange="renameStage(${i},this.value)" ${st.locked?'readonly':''} data-stage-name="${i}"
+      style="flex:1;background:transparent;border:none;border-bottom:1px solid ${st.locked?'transparent':'var(--border2)'};outline:none;font-size:13px;font-weight:700;color:${st.color};font-family:inherit;padding:2px 6px;cursor:${st.locked?'default':'text'};">
+    <span style="font-size:11px;color:var(--text3);flex-shrink:0;font-family:'JetBrains Mono';">${candidates.filter(c=>c.stage===st.name).length}</span>
+    ${st.locked?`<span style="font-size:12px;" title="Required">🔒</span>`:''}
+    <label class="toggle-switch" style="flex-shrink:0;">
+      <input type="checkbox" ${st.enabled?'checked':''} ${st.locked?'disabled':''} onchange="toggleStage(${i},this.checked)">
+      <div class="toggle-track"></div>
+    </label>
+    ${!st.locked?`<button onclick="deleteStage(${i})" class="btn btn-ghost btn-sm" style="color:var(--red);padding:4px 8px;flex-shrink:0;">✕</button>`:`<div style="width:36px;"></div>`}
+  </div>`;
+}
+
+let dragSrcIdx = null;
+function stageDragStart(e,i) { dragSrcIdx=i; e.dataTransfer.effectAllowed='move'; }
+function stageDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect='move'; }
+function stageDrop(e,i) {
+  e.preventDefault();
+  if(dragSrcIdx===null||dragSrcIdx===i) return;
+  const list=getCustomStages(); const moved=list.splice(dragSrcIdx,1)[0]; list.splice(i,0,moved);
+  localStorage.setItem('tf_custom_stages',JSON.stringify(list)); dragSrcIdx=null;
+  switchSettingsTab('s-pipeline');
+}
+
+function toggleColorPicker(i) {
+  const p=document.getElementById('colorpicker-'+i); if(!p) return;
+  const open=p.style.display==='grid';
+  document.querySelectorAll('[id^="colorpicker-"]').forEach(x=>x.style.display='none');
+  p.style.display=open?'none':'grid';
+}
+function setStageColor(i,color) {
+  const list=getCustomStages(); list[i].color=color;
+  localStorage.setItem('tf_custom_stages',JSON.stringify(list));
+  document.getElementById('colorpicker-'+i).style.display='none';
+  switchSettingsTab('s-pipeline');
+}
+function renameStage(i,val) {
+  if(!val.trim()) return;
+  const list=getCustomStages(); const old=list[i].name;
+  if(old===val.trim()) return;
+  list[i].name=val.trim();
+  localStorage.setItem('tf_custom_stages',JSON.stringify(list));
+  candidates.forEach(c=>{if(c.stage===old) c.stage=val.trim();}); save();
+}
+function toggleStage(i,enabled) {
+  const list=getCustomStages(); list[i].enabled=enabled;
+  localStorage.setItem('tf_custom_stages',JSON.stringify(list));
+  updatePreview(list);
+}
+function updatePreview(list) {
+  const p=document.getElementById('stage-preview'); if(!p) return;
+  const en=list.filter(s=>s.enabled);
+  p.innerHTML=en.map((st,idx,arr)=>`
+    <div style="display:flex;align-items:center;flex-shrink:0;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 6px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:${st.color}22;border:2px solid ${st.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:${st.color};">${idx+1}</div>
+        <div style="font-size:10px;font-weight:600;color:${st.color};white-space:nowrap;">${st.name}</div>
+      </div>
+      ${idx<arr.length-1?`<div style="width:16px;height:2px;background:var(--border);flex-shrink:0;margin-bottom:12px;"></div>`:''}</div>`).join('');
+}
+function deleteStage(i) {
+  const list=getCustomStages(); const st=list[i];
+  const cnt=candidates.filter(c=>c.stage===st.name).length;
+  if(cnt>0&&!confirm(`"${st.name}" has ${cnt} candidate(s) — they'll move to Applied. Delete?`)) return;
+  if(cnt>0) { candidates.forEach(c=>{if(c.stage===st.name)c.stage='Applied';}); save(); }
+  list.splice(i,1); localStorage.setItem('tf_custom_stages',JSON.stringify(list));
+  switchSettingsTab('s-pipeline');
+}
+function addCustomStage() {
+  const list=getCustomStages();
+  const usedColors=list.map(s=>s.color);
+  const freeColor=STAGE_COLOR_OPTIONS.find(c=>!usedColors.includes(c))||'#4f8ef7';
+  const hiredIdx=list.findIndex(s=>s.name==='Hired');
+  list.splice(hiredIdx>0?hiredIdx:list.length-2,0,{name:'New Stage',color:freeColor,enabled:true,locked:false});
+  localStorage.setItem('tf_custom_stages',JSON.stringify(list));
+  switchSettingsTab('s-pipeline');
+  setTimeout(()=>{ const inputs=document.querySelectorAll('[data-stage-name]'); const inp=Array.from(inputs).find(e=>e.value==='New Stage'); if(inp){inp.select();inp.focus();} },100);
+}
+function saveCustomStages() {
+  const list=getCustomStages();
+  document.querySelectorAll('[data-stage-name]').forEach(inp=>{
+    const i=parseInt(inp.dataset.stageName); if(!isNaN(i)&&list[i]) list[i].name=inp.value.trim()||list[i].name;
+  });
+  saveCustomStagesToStorage(list);
+  populateJobFilters(); showToast('Pipeline saved! ✅');
+  switchSettingsTab('s-pipeline');
+}
+function resetStages() {
+  if(!confirm('Reset to default stages?')) return;
+  localStorage.removeItem('tf_custom_stages');
+  saveCustomStagesToStorage([...DEFAULT_STAGES]);
+  switchSettingsTab('s-pipeline'); showToast('Pipeline reset to defaults');
+}
+function initCustomStages() {
+  saveCustomStagesToStorage(getCustomStages());
+}
+
 // ===================== INIT =====================
 populateJobFilters();
+initCustomStages();
 renderDashboard();
 applySavedSettings();
 </script>
