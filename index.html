@@ -351,6 +351,119 @@ padding:6px 12px; border-radius:8px; white-space:nowrap; z-index:999;
 border:1px solid var(–border2); box-shadow:0 4px 16px rgba(0,0,0,0.3); pointer-events:none;
 }
 
+/* ═══════════════════════════════
+MOBILE RESPONSIVE  (≤ 768px)
+═══════════════════════════════ */
+@media (max-width: 768px) {
+/* Hide desktop sidebar and toggle on mobile */
+.sidebar { display: none !important; }
+.sidebar-toggle { display: none !important; }
+
+```
+/* Main fills full screen */
+.main { margin-left: 0 !important; height: 100dvh; }
+
+/* Topbar on mobile */
+.topbar { padding: 0 14px; height: 50px; }
+.topbar-title { font-size: 15px; }
+#global-search-wrap { width: 160px !important; }
+#global-search-wrap:focus-within { width: 200px !important; }
+
+/* Content padding reduced */
+.content { padding: 14px; }
+
+/* Stats: 2 cols on mobile */
+.stats-row { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.stat-card { padding: 12px 14px; }
+.stat-val { font-size: 22px; }
+
+/* Two-col → single col */
+.two-col { grid-template-columns: 1fr; gap: 14px; }
+
+/* Panels full width */
+.panel { border-radius: 10px; }
+
+/* Filter bar wraps */
+.filters-bar { padding: 10px 14px; gap: 6px; }
+.filter-select { font-size: 12px; padding: 5px 8px; }
+
+/* Table: hide less important columns */
+table thead th:nth-child(4),
+table thead th:nth-child(5),
+table tbody td:nth-child(4),
+table tbody td:nth-child(5) { display: none; }
+tbody td { padding: 10px 10px; font-size: 12px; }
+thead th { padding: 8px 10px; font-size: 10px; }
+.td-name { gap: 8px; }
+
+/* Detail panel: full screen on mobile */
+.detail-panel { width: 100% !important; }
+
+/* Modal: full screen on mobile */
+.modal-overlay { padding: 0; align-items: flex-end; }
+.modal { max-width: 100% !important; border-radius: 16px 16px 0 0; max-height: 92dvh; }
+.modal-header { padding: 16px 18px; }
+.modal-body { padding: 16px 18px; gap: 14px; }
+.modal-footer { padding: 12px 18px; }
+.form-row { grid-template-columns: 1fr; gap: 12px; }
+
+/* Kanban: horizontal scroll */
+.kanban { padding: 0 14px 12px; gap: 10px; }
+.kanban-col { width: 180px; }
+
+/* Candidate profile: stack vertically */
+#candprofile-content > div > div[style*="grid-template-columns:1fr 420px"] {
+  grid-template-columns: 1fr !important;
+}
+
+/* Jobs page: simpler cards */
+.job-item { padding: 12px 14px; gap: 10px; }
+
+/* Page sections */
+#page-candidates { padding-bottom: 60px; }
+
+/* Bottom nav bar */
+.mobile-nav {
+  display: flex !important;
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 500;
+  background: var(--bg2); border-top: 1px solid var(--border);
+  padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+}
+.mobile-nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 2px; padding: 4px 2px; cursor: pointer; color: var(--text3);
+  font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+  transition: color 0.12s; border: none; background: none; font-family: inherit;
+}
+.mobile-nav-item .mn-icon { font-size: 18px; line-height: 1; }
+.mobile-nav-item.active { color: var(--accent); }
+.mobile-nav-item:active { transform: scale(0.92); }
+
+/* Login screen on mobile */
+.login-card { padding: 32px 24px; margin: 16px; }
+
+/* Settings page: no grid sidebar, stack vertically */
+#page-settings > div { grid-template-columns: 1fr !important; }
+#settings-sidebar { border-right: none !important; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 4px; padding: 10px !important; }
+#settings-sidebar .nav-item { padding: 5px 10px; font-size: 11px; flex-shrink: 0; }
+
+/* Candidate profile topbar: wrap buttons */
+#candprofile-content [style*="flex-wrap:wrap"] { gap: 4px !important; }
+
+/* Pipeline funnel: smaller */
+#cand-pipeline-funnel { padding: 8px 14px 0; }
+#cand-pipeline-funnel > div > div:last-child { height: 60px !important; }
+```
+
+}
+
+@media (max-width: 480px) {
+.stats-row { grid-template-columns: 1fr 1fr; }
+.topbar-title { font-size: 14px; }
+#global-search-wrap { width: 130px !important; }
+.btn-primary { padding: 6px 11px; font-size: 12px; }
+}
+
 /* PIPELINE FUNNEL */
 .funnel-wrap { display:flex; align-items:stretch; gap:0; overflow-x:auto; margin-bottom:0; padding-bottom:2px; }
 .funnel-stage { display:flex; align-items:center; flex:1; min-width:90px; }
@@ -5606,7 +5719,101 @@ initCustomStages();
 renderDashboard();
 applySavedSettings();
 initSidebarState();
+initMobileNav();
+
+function initMobileNav() {
+// Show mobile nav on small screens
+const mq = window.matchMedia(’(max-width: 768px)’);
+const toggle = () => {
+const nav = document.getElementById(‘mobile-nav’);
+if(nav) nav.style.display = mq.matches ? ‘flex’ : ‘none’;
+};
+mq.addEventListener(‘change’, toggle);
+toggle();
+}
+
+function mobileNav(page, el) {
+// Close more menu
+const more = document.getElementById(‘mobile-more-menu’);
+if(more) more.style.display = ‘none’;
+// Update active state on bottom bar
+document.querySelectorAll(’.mobile-nav-item’).forEach(b => b.classList.remove(‘active’));
+const mainPages = [‘dashboard’,‘jobs’,‘candidates’,‘pipeline’];
+mainPages.forEach(p => {
+const btn = document.getElementById(‘mn-’ + p);
+if(btn) btn.classList.toggle(‘active’, p === page);
+});
+if(el) el.classList.add(‘active’);
+showPage(page, null);
+}
+
+function toggleMobileMore() {
+const menu = document.getElementById(‘mobile-more-menu’);
+if(!menu) return;
+menu.style.display = menu.style.display === ‘none’ || !menu.style.display ? ‘block’ : ‘none’;
+}
+
+// Close more menu when tapping outside
+document.addEventListener(‘click’, e => {
+const menu = document.getElementById(‘mobile-more-menu’);
+if(menu && menu.style.display !== ‘none’) {
+if(!e.target.closest(’#mobile-more-menu’) && !e.target.closest(’#mn-more’)) {
+menu.style.display = ‘none’;
+}
+}
+});
 </script>
+
+<!-- MOBILE BOTTOM NAV (hidden on desktop, shown on mobile via CSS) -->
+
+<nav class="mobile-nav" id="mobile-nav" style="display:none;">
+  <button class="mobile-nav-item active" id="mn-dashboard" onclick="mobileNav('dashboard',this)">
+    <span class="mn-icon">📊</span><span>Home</span>
+  </button>
+  <button class="mobile-nav-item" id="mn-jobs" onclick="mobileNav('jobs',this)">
+    <span class="mn-icon">💼</span><span>Jobs</span>
+  </button>
+  <button class="mobile-nav-item" id="mn-candidates" onclick="mobileNav('candidates',this)">
+    <span class="mn-icon">👥</span><span>People</span>
+  </button>
+  <button class="mobile-nav-item" id="mn-pipeline" onclick="mobileNav('pipeline',this)">
+    <span class="mn-icon">🔀</span><span>Pipeline</span>
+  </button>
+  <button class="mobile-nav-item" id="mn-more" onclick="toggleMobileMore()">
+    <span class="mn-icon">⋯</span><span>More</span>
+  </button>
+</nav>
+
+<!-- MOBILE MORE MENU -->
+
+<div id="mobile-more-menu" style="display:none;position:fixed;bottom:70px;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);z-index:499;padding:12px 16px;display:none;">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+    <button onclick="mobileNav('interviews',null);toggleMobileMore()" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:600;">
+      <span style="font-size:20px;">📅</span>Interviews
+    </button>
+    <button onclick="mobileNav('offers',null);toggleMobileMore()" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:600;">
+      <span style="font-size:20px;">📄</span>Offers
+    </button>
+    <button onclick="mobileNav('projects',null);toggleMobileMore()" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:600;">
+      <span style="font-size:20px;">📁</span>Projects
+    </button>
+    <button onclick="mobileNav('inbox',null);toggleMobileMore()" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:600;">
+      <span style="font-size:20px;">📬</span>Inbox
+    </button>
+    <button onclick="mobileNav('analytics',null);toggleMobileMore()" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:600;">
+      <span style="font-size:20px;">📈</span>Analytics
+    </button>
+    <button onclick="mobileNav('reports',null);toggleMobileMore()" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:600;">
+      <span style="font-size:20px;">📋</span>Reports
+    </button>
+    <button onclick="mobileNav('settings',null);toggleMobileMore()" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:600;">
+      <span style="font-size:20px;">⚙️</span>Settings
+    </button>
+    <button onclick="toggleMobileMore()" style="background:var(--bg4);border:1px solid var(--border);border-radius:10px;padding:12px 6px;cursor:pointer;font-family:inherit;color:var(--text3);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:600;">
+      <span style="font-size:20px;">✕</span>Close
+    </button>
+  </div>
+</div>
 
 <!-- FIREBASE -->
 
