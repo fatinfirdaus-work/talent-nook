@@ -90,7 +90,28 @@
   .search-icon { color: var(--text3); font-size: 13px; flex-shrink: 0; }
 
   /* ── CONTENT ── */
-  .content { flex: 1; overflow-y: auto; padding: 22px; }
+  .content { flex: 1; overflow: hidden; position: relative; }
+
+  /* ── MISC ── */
+  .page { display: none; }
+  .page.active { display: block; position: absolute; inset: 0; overflow: hidden; }
+  /* Scrollable content wrapper inside each page */
+  .page-scroll { position: absolute; inset: 0; overflow-y: auto; padding: 22px; }
+  /* Candidates page: flex row layout for sidebar + table */
+  #page-candidates.active { display: flex; flex-direction: row; }
+  /* Pipeline: scrollable in both axes */
+  #page-pipeline.active .page-scroll { overflow: auto; padding: 0; }
+  #page-pipeline.active .kanban-wrap { padding: 22px; }
+  /* Jobs: flex for sticky toolbar */
+  #page-jobs.active { display: flex; flex-direction: column; }
+  #page-jobs.active .panel { flex: 1; overflow-y: auto; min-height: 0; }
+  /* Full-screen pages that manage their own scroll */
+  #page-candprofile.active,
+  #page-jobdetail.active,
+  #page-projectdetail.active { display: block; }
+  /* Settings: no extra padding */
+  #page-settings.active .page-scroll,
+  #page-projects.active .page-scroll { padding: 0; }
 
   /* ── STATS ROW ── */
   .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 22px; }
@@ -236,32 +257,6 @@
   .offer-field-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 3px; }
   .offer-field-val { font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono'; }
 
-  /* ── MISC ── */
-  .page { display: none; overflow: hidden; }
-  .page.active { display: flex; flex-direction: column; height: calc(100vh - 52px); }
-  /* Pages that need a scrollable content area */
-  .page-scroll { flex: 1; overflow-y: auto; padding: 22px; }
-  /* Candidates overrides handled separately */
-  #page-candidates.active { display: flex; flex-direction: column; }
-  #page-candidates.active > div { flex: 1; overflow: hidden; }
-  #page-candidates.active .panel { overflow: hidden; flex: 1; }
-  #page-candidates.active .table-wrap { height: 100%; overflow-y: auto; }
-  #page-candprofile.active { display: block; height: calc(100vh - 52px); overflow: hidden; }
-  #page-jobdetail.active { display: block; height: calc(100vh - 52px); overflow: hidden; }
-  #page-projectdetail.active { display: block; height: calc(100vh - 52px); overflow: hidden; }
-  /* Jobs page: sticky toolbar + scrollable list */
-  #page-jobs.active { display: flex; flex-direction: column; }
-  #page-jobs.active .panel { flex: 1; overflow-y: auto; }
-  /* Pipeline: needs horizontal scroll for kanban */
-  #page-pipeline.active .page-scroll { overflow: hidden; padding: 0; display: flex; flex-direction: column; }
-  #page-pipeline.active .kanban-wrap { flex: 1; overflow: auto; padding: 22px; }
-  /* Interviews: simple scroll */
-  #page-interviews.active .page-scroll,
-  #page-offers.active .page-scroll,
-  #page-analytics.active .page-scroll,
-  #page-reports.active .page-scroll,
-  #page-inbox.active .page-scroll,
-  #page-settings.active .page-scroll { flex: 1; overflow-y: auto; }
   .empty-state { text-align: center; padding: 44px 20px; }
   .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.35; }
   .empty-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
