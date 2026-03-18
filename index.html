@@ -644,9 +644,17 @@
   <div class="topbar">
     <div class="topbar-title" id="topbar-title">Dashboard</div>
     <div class="topbar-actions">
-      <div class="search-bar">
+      <!-- GLOBAL SEARCH -->
+      <div class="search-bar" id="global-search-wrap" style="position:relative;width:240px;">
         <span class="search-icon">🔍</span>
-        <input type="text" placeholder="Search candidates, jobs..." id="globalSearch" oninput="handleSearch(this.value)">
+        <input type="text" placeholder="Search anything..." id="globalSearch"
+          oninput="handleGlobalSearch(this.value)"
+          onkeydown="globalSearchKey(event)"
+          onfocus="if(this.value.trim()) showGlobalResults(this.value)"
+          autocomplete="off" style="width:100%;">
+        <button id="global-search-clear" onclick="clearGlobalSearch()" style="display:none;background:none;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:16px;">✕</button>
+        <!-- Results dropdown -->
+        <div id="global-search-results" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);z-index:9999;max-height:480px;overflow-y:auto;"></div>
       </div>
       <button class="btn btn-ghost btn-icon" data-tip="Notifications">🔔</button>
       <button class="btn btn-primary" onclick="openModal('add')">+ New Job</button>
@@ -775,7 +783,23 @@
     </div>
 
     <div class="page" id="page-candidates">
-      <div class="filters-bar">
+      <div class="filters-bar" style="flex-wrap:wrap;gap:8px;">
+        <!-- Search input with field picker -->
+        <div style="display:flex;align-items:center;gap:0;background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:260px;flex:1;max-width:380px;">
+          <select id="cand-search-field" onchange="renderCandidates()" style="background:var(--bg4);border:none;border-right:1px solid var(--border);border-radius:0;padding:8px 10px;font-size:12px;color:var(--text2);cursor:pointer;outline:none;">
+            <option value="all">All Fields</option>
+            <option value="name">Name</option>
+            <option value="email">Email</option>
+            <option value="phone">Phone</option>
+            <option value="location">Location</option>
+            <option value="skills">Skills</option>
+            <option value="title">Job Title</option>
+            <option value="source">Source</option>
+          </select>
+          <input type="text" id="cand-search" placeholder="Search..." oninput="renderCandidates()"
+            style="flex:1;background:transparent;border:none;outline:none;padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit;">
+          <button onclick="document.getElementById('cand-search').value='';renderCandidates()" style="background:none;border:none;color:var(--text3);cursor:pointer;padding:0 10px;font-size:14px;" title="Clear">✕</button>
+        </div>
         <select class="filter-select" id="cand-stage-filter" onchange="renderCandidates()">
           <option value="">All Stages</option>
           <option>Applied</option><option>Screening</option><option>Interview</option><option>Offer</option><option>Hired</option><option>Rejected</option>
@@ -785,8 +809,8 @@
         </select>
         <select class="filter-select" id="cand-sort" onchange="renderCandidates()">
           <option value="date">Sort: Latest</option>
-          <option value="name">Sort: Name</option>
-          <option value="score">Sort: Score</option>
+          <option value="name">Sort: Name A–Z</option>
+          <option value="score">Sort: Score ↓</option>
         </select>
         <button class="btn btn-primary btn-sm" onclick="openModal('addCandidate')" style="margin-left:auto">+ Add Candidate</button>
         <span style="color:var(--text3);font-size:12px" id="cand-count"></span>
@@ -1304,32 +1328,72 @@ function renderJobs(filter='', statusFilter='') {
 function filterJobs(dept) { renderJobs(dept, document.querySelector('#page-jobs .filter-select:nth-child(2)').value); }
 function filterJobStatus(status) { renderJobs(document.querySelector('#page-jobs .filter-select:nth-child(1)').value, status); }
 
+function escapeHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+
+
+function highlightMatch(text, query) {
+  if(!query) return escapeHtml(text);
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if(idx < 0) return escapeHtml(text);
+  return escapeHtml(text.slice(0,idx)) +
+    '<mark style="background:var(--accent-dim);color:var(--accent);border-radius:2px;">' +
+    escapeHtml(text.slice(idx, idx+query.length)) + '</mark>' +
+    escapeHtml(text.slice(idx+query.length));
+}
+
+
 function renderCandidates() {
   let list = [...candidates];
-  const stageF = document.getElementById('cand-stage-filter').value;
-  const jobF = document.getElementById('cand-job-filter').value;
-  const sort = document.getElementById('cand-sort').value;
+  const stageF = document.getElementById('cand-stage-filter')?.value || '';
+  const jobF = document.getElementById('cand-job-filter')?.value || '';
+  const sort = document.getElementById('cand-sort')?.value || 'date';
+  const searchQ = (document.getElementById('cand-search')?.value || '').trim().toLowerCase();
+  const searchField = document.getElementById('cand-search-field')?.value || 'all';
   const jobId = jobF ? parseInt(jobF) : null;
 
-  // Multi-job aware filtering
   if(stageF) list = list.filter(c => jobId ? getCandStageForJob(c, jobId) === stageF : c.stage === stageF);
   if(jobId) list = list.filter(c => getCandJobIds(c).includes(jobId));
+
+  if(searchQ) {
+    list = list.filter(c => {
+      const jobTitles = getCandJobs(c).map(a=>getJob(a.jobId)?.title||'').join(' ');
+      const fieldMap = {
+        name:     [c.name],
+        email:    [c.email],
+        phone:    [c.phone],
+        location: [c.location],
+        skills:   [(c.skills||[]).join(' ')],
+        title:    [c.currentTitle, jobTitles],
+        source:   [c.source],
+        all:      [c.name, c.email, c.phone, c.location, c.currentTitle,
+                   c.source, (c.skills||[]).join(' '), jobTitles, c.exp, c.applied, String(c.score)]
+      };
+      return (fieldMap[searchField]||fieldMap.all).some(f=>f&&f.toLowerCase().includes(searchQ));
+    });
+  }
 
   if(sort==='name') list.sort((a,b)=>a.name.localeCompare(b.name));
   else if(sort==='score') list.sort((a,b)=>b.score-a.score);
   else list.sort((a,b)=>new Date(b.applied)-new Date(a.applied));
 
-  document.getElementById('cand-count').textContent = list.length + ' candidates';
+  const activeFilters = [stageF,jobF,searchQ].filter(Boolean).length;
+  const countEl = document.getElementById('cand-count');
+  if(countEl) countEl.textContent = list.length + ' candidate'+(list.length!==1?'s':'')+(activeFilters?' (filtered)':'');
   document.getElementById('cand-tbody').innerHTML = list.length ? list.map(c=>{
     const displayJobId = jobId || c.jobId;
     const job = getJob(displayJobId);
     const allApps = getCandJobs(c);
     const displayStage = jobId ? getCandStageForJob(c, jobId) : c.stage;
     const extraJobs = allApps.length > 1 ? `<span style="font-size:10px;color:var(--accent);font-weight:700;margin-left:4px;">+${allApps.length-1}</span>` : '';
+    const nameDisplay = searchQ ? highlightMatch(c.name, searchQ) : escapeHtml(c.name);
     return `<tr>
       <td><div class="td-name">
         <div class="cand-avatar" style="background:${c.color}33;color:${c.color}">${c.initials}</div>
-        <div><div style="font-weight:600;cursor:pointer;color:var(--accent)" onclick="openCandProfile(${c.id})">${c.name}</div><div style="font-size:11px;color:var(--text3)">${c.email||''}</div></div>
+        <div><div style="font-weight:600;cursor:pointer;color:var(--accent)" onclick="openCandProfile(${c.id})">${nameDisplay}</div>
+        <div style="font-size:11px;color:var(--text3)">${c.email||''}${c.phone?' · '+c.phone:''}</div></div>
       </div></td>
       <td style="color:var(--text2);cursor:pointer" onclick="openJobDetail(${displayJobId})">${job?job.title:'–'}${extraJobs}</td>
       <td><span class="badge ${stageBadge[displayStage]||'badge-gray'}">${displayStage}</span></td>
@@ -1341,7 +1405,7 @@ function renderCandidates() {
         <button class="btn btn-ghost btn-sm" onclick="openCandInNewTab(${c.id})" title="Open in new tab">↗</button>
       </div></td>
     </tr>`;}).join('')
-    : `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No candidates</div></div></td></tr>`;
+    : `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">${searchQ?"🔍":"👥"}</div><div class="empty-title">${searchQ?'No candidates match "'+escapeHtml(searchQ)+'"':'No candidates'}</div>${searchQ?'<div style="margin-top:8px;"><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'cand-search\').value=\'\';renderCandidates()">Clear search</button></div>':''}</div></td></tr>`;
 }
 
 function renderPipeline() {
@@ -2759,11 +2823,6 @@ function renderNotesList(c) {
 }
 
 
-function escapeHtml(str) {
-  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-
 function formatDateTime(isoStr) {
   if(!isoStr) return '–';
   try {
@@ -4146,10 +4205,138 @@ function closeModal() { document.getElementById('modal-overlay').classList.remov
 function closeModalOuter(e) { if(e.target===document.getElementById('modal-overlay')) closeModal(); }
 
 // ===================== SEARCH =====================
-function handleSearch(val) {
-  if(!val.trim()) return;
-  // Basic highlight — in real app would do full search
+// ===================== GLOBAL SEARCH =====================
+let searchDebounceTimer = null;
+
+function handleGlobalSearch(val) {
+  const clearBtn = document.getElementById('global-search-clear');
+  if(clearBtn) clearBtn.style.display = val ? 'block' : 'none';
+  clearTimeout(searchDebounceTimer);
+  if(!val.trim()) { hideGlobalResults(); return; }
+  searchDebounceTimer = setTimeout(()=>showGlobalResults(val), 150);
 }
+
+function clearGlobalSearch() {
+  const input = document.getElementById('globalSearch');
+  if(input) input.value = '';
+  const clearBtn = document.getElementById('global-search-clear');
+  if(clearBtn) clearBtn.style.display = 'none';
+  hideGlobalResults();
+}
+
+function hideGlobalResults() {
+  const el = document.getElementById('global-search-results');
+  if(el) el.style.display = 'none';
+}
+
+function showGlobalResults(query) {
+  const el = document.getElementById('global-search-results');
+  if(!el) return;
+  const q = query.toLowerCase().trim();
+  if(!q) { hideGlobalResults(); return; }
+
+  const results = [];
+
+  // Search candidates — all fields
+  candidates.forEach(c => {
+    const jobTitles = getCandJobs(c).map(a=>getJob(a.jobId)?.title||'').join(' ');
+    const searchable = [c.name, c.email, c.phone, c.location, c.currentTitle,
+      c.source, (c.skills||[]).join(' '), jobTitles, c.exp].filter(Boolean).join(' ').toLowerCase();
+    if(searchable.includes(q)) {
+      results.push({ type:'candidate', icon:c.initials, color:c.color,
+        title:c.name, sub:(getJob(c.jobId)?.title||'–') + ' · ' + c.stage,
+        action:`openCandProfile(${c.id})`, score: c.name.toLowerCase().startsWith(q)?3:searchable.indexOf(q)<20?2:1 });
+    }
+  });
+
+  // Search jobs
+  jobs.forEach(j => {
+    const searchable = [j.title, j.dept, j.location, j.type, j.salary,
+      (j.skills||[]).join(' '), j.description].filter(Boolean).join(' ').toLowerCase();
+    if(searchable.includes(q)) {
+      results.push({ type:'job', icon:j.icon||'💼', color:j.color||'#4f8ef7',
+        title:j.title, sub:j.dept + ' · ' + j.location + ' · ' + j.status,
+        action:`showPage('jobs',null);setTimeout(()=>openJobDetail(${j.id}),100)`,
+        score: j.title.toLowerCase().startsWith(q)?3:2 });
+    }
+  });
+
+  // Search projects
+  projects.forEach(p => {
+    const searchable = [p.name, p.description, p.status, (p.team||[]).join(' ')].filter(Boolean).join(' ').toLowerCase();
+    if(searchable.includes(q)) {
+      results.push({ type:'project', icon:p.icon||'📁', color:p.color||'#4f8ef7',
+        title:p.name, sub:(p.description||'').slice(0,50) + (p.description?.length>50?'…':''),
+        action:`openProjectDetail(${p.id})`, score:2 });
+    }
+  });
+
+  // Sort by relevance
+  results.sort((a,b)=>b.score-a.score);
+
+  if(!results.length) {
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px;">No results for "<strong>' + escapeHtml(query) + '</strong>"</div>';
+    el.style.display = 'block';
+    return;
+  }
+
+  // Group by type
+  const groups = { candidate:'👥 Candidates', job:'💼 Jobs', project:'📁 Projects' };
+  const grouped = {};
+  results.forEach(r => { if(!grouped[r.type]) grouped[r.type]=[]; grouped[r.type].push(r); });
+
+  let html = '';
+  Object.entries(grouped).forEach(([type, items]) => {
+    html += '<div style="padding:8px 14px 4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);">' + groups[type] + ' (' + items.length + ')</div>';
+    items.slice(0,5).forEach((r,i) => {
+      const isCandidate = r.type==='candidate';
+      const avatarStyle = isCandidate
+        ? 'width:30px;height:30px;border-radius:50%;background:'+r.color+'33;color:'+r.color+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;'
+        : 'width:30px;height:30px;border-radius:8px;background:'+r.color+'22;color:'+r.color+';display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;';
+      html += '<div onclick="' + r.action + ';clearGlobalSearch()" style="display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background 0.1s;" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'\'">' +
+        '<div style="' + avatarStyle + '">' + r.icon + '</div>' +
+        '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + highlightMatch(r.title, q) + '</div>' +
+        '<div style="font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + r.sub + '</div>' +
+        '</div>' +
+        '<span style="font-size:10px;color:var(--text3);flex-shrink:0;">↗</span>' +
+        '</div>';
+    });
+    if(items.length>5) {
+      html += '<div style="padding:6px 14px 8px;font-size:11px;color:var(--accent);cursor:pointer;" onclick="' +
+        (type==='candidate'?"showPage('candidates',null);document.getElementById('cand-search').value='" + escapeHtml(query) + "';renderCandidates();clearGlobalSearch()":
+         type==='job'?"showPage('jobs',null);clearGlobalSearch()":"showPage('projects',null);clearGlobalSearch()") +
+        '">See all ' + items.length + ' ' + groups[type].split(' ')[1].toLowerCase() + ' →</div>';
+    }
+  });
+
+  // Quick actions
+  html += '<div style="border-top:1px solid var(--border);padding:8px 14px;display:flex;gap:8px;flex-wrap:wrap;">' +
+    '<div onclick="showPage(\'candidates\',null);document.getElementById(\'cand-search\').value=\'' + escapeHtml(query) + '\';renderCandidates();clearGlobalSearch()" style="font-size:11px;color:var(--accent);cursor:pointer;padding:3px 8px;background:var(--accent-dim);border-radius:4px;">Search in Candidates →</div>' +
+    '<div onclick="showPage(\'jobs\',null);clearGlobalSearch()" style="font-size:11px;color:var(--purple);cursor:pointer;padding:3px 8px;background:var(--purple-dim);border-radius:4px;">Browse Jobs →</div>' +
+    '</div>';
+
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+function globalSearchKey(e) {
+  if(e.key==='Escape') clearGlobalSearch();
+  if(e.key==='Enter') {
+    const q = e.target.value.trim();
+    if(q) {
+      showPage('candidates', null);
+      document.getElementById('cand-search').value = q;
+      renderCandidates();
+      clearGlobalSearch();
+    }
+  }
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', e => {
+  if(!e.target.closest('#global-search-wrap')) hideGlobalResults();
+});
 
 // ===================== API KEY =====================
 function saveApiKey() {
