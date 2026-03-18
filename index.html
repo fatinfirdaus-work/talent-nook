@@ -362,7 +362,47 @@
   .history-item { display:flex;gap:12px;padding:14px 24px;border-bottom:1px solid var(--border); }
   .history-dot { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px; }
 
-  /* LIGHT THEME */
+  /* SIDEBAR COLLAPSIBLE */
+  .sidebar { transition: width 0.25s cubic-bezier(0.4,0,0.2,1); overflow:hidden; }
+  body.sidebar-collapsed .sidebar { width: 56px; }
+  body.sidebar-collapsed .sidebar .logo-text,
+  body.sidebar-collapsed .sidebar .nav-label,
+  body.sidebar-collapsed .sidebar .nav-item span:not(.icon),
+  body.sidebar-collapsed .sidebar .nav-badge,
+  body.sidebar-collapsed .sidebar .user-info,
+  body.sidebar-collapsed .sidebar .cloud-badge { display:none; }
+  body.sidebar-collapsed .sidebar .nav-item { justify-content:center; padding:10px 0; }
+  body.sidebar-collapsed .sidebar .icon { margin:0; font-size:18px; }
+  body.sidebar-collapsed .sidebar .logo { justify-content:center; padding:16px 0; }
+  body.sidebar-collapsed .sidebar .user-card { justify-content:center; padding:12px 0; }
+  body.sidebar-collapsed .main { margin-left:56px; }
+  body.sidebar-collapsed .page-loader { left:56px; }
+  .sidebar-toggle { position:fixed;bottom:80px;left:0;z-index:200;width:20px;height:40px;
+    background:var(--bg2);border:1px solid var(--border);border-left:none;border-radius:0 8px 8px 0;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    transition:left 0.25s cubic-bezier(0.4,0,0.2,1), background 0.15s;font-size:11px;color:var(--text3); }
+  .sidebar-toggle:hover { background:var(--bg3); color:var(--text); }
+  body:not(.sidebar-collapsed) .sidebar-toggle { left:220px; }
+  body.sidebar-collapsed .sidebar-toggle { left:56px; }
+
+  /* NAV TOOLTIP when collapsed */
+  body.sidebar-collapsed .nav-item { position:relative; }
+  body.sidebar-collapsed .nav-item:hover::after {
+    content: attr(data-label); position:absolute; left:56px; top:50%; transform:translateY(-50%);
+    background:var(--bg4); color:var(--text); font-size:12px; font-weight:600;
+    padding:6px 12px; border-radius:8px; white-space:nowrap; z-index:999;
+    border:1px solid var(--border2); box-shadow:0 4px 16px rgba(0,0,0,0.3); pointer-events:none;
+  }
+
+  /* JOB CARD EXPANDED — pipeline summary inline */
+  .job-pipeline-bar { display:flex; gap:2px; height:6px; border-radius:3px; overflow:hidden; margin-top:6px; }
+  .job-pipeline-seg { flex:1; min-width:4px; border-radius:2px; }
+
+  /* MULTI-SELECT */
+  .cand-row-selected { background:var(--accent-dim) !important; }
+  .bulk-action-bar { position:sticky; bottom:0; left:0; right:0; background:var(--bg2); border-top:2px solid var(--accent);
+    padding:10px 20px; display:flex; align-items:center; gap:10px; z-index:50; animation:slideUp 0.2s ease; }
+
   body.theme-light {
     --bg: #f0f2f7;
     --bg2: #ffffff;
@@ -572,6 +612,9 @@
 </div>
 
 <!-- SIDEBAR -->
+<!-- SIDEBAR TOGGLE -->
+<button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebar-toggle" title="Toggle sidebar">‹</button>
+
 <aside class="sidebar">
   <div class="logo">
     <div class="logo-icon">🌊</div>
@@ -580,47 +623,47 @@
   <nav class="nav">
     <div class="nav-section">
       <div class="nav-label">Overview</div>
-      <div class="nav-item active" onclick="showPage('dashboard', this)">
+      <div class="nav-item active" data-label="Dashboard" onclick="showPage('dashboard', this)">
         <span class="icon">📊</span> Dashboard
       </div>
-      <div class="nav-item" onclick="showPage('analytics', this)">
+      <div class="nav-item" data-label="Analytics" onclick="showPage('analytics', this)">
         <span class="icon">📈</span> Analytics
       </div>
     </div>
     <div class="nav-section">
       <div class="nav-label">Recruiting</div>
-      <div class="nav-item" onclick="showPage('projects', this)">
+      <div class="nav-item" data-label="Projects" onclick="showPage('projects', this)">
         <span class="icon">📁</span> Projects
       </div>
-      <div class="nav-item" onclick="showPage('jobs', this)">
+      <div class="nav-item" data-label="Jobs" onclick="showPage('jobs', this)">
         <span class="icon">💼</span> Jobs
         <span class="nav-badge">12</span>
       </div>
-      <div class="nav-item" onclick="showPage('candidates', this)">
+      <div class="nav-item" data-label="Candidates" onclick="showPage('candidates', this)">
         <span class="icon">👥</span> Candidates
         <span class="nav-badge">84</span>
       </div>
-      <div class="nav-item" onclick="showPage('pipeline', this)">
+      <div class="nav-item" data-label="Pipeline" onclick="showPage('pipeline', this)">
         <span class="icon">🔀</span> Pipeline
       </div>
-      <div class="nav-item" onclick="showPage('interviews', this)">
+      <div class="nav-item" data-label="Interviews" onclick="showPage('interviews', this)">
         <span class="icon">📅</span> Interviews
         <span class="nav-badge">5</span>
       </div>
-      <div class="nav-item" onclick="showPage('offers', this)">
+      <div class="nav-item" data-label="Offers" onclick="showPage('offers', this)">
         <span class="icon">📄</span> Offers
       </div>
     </div>
     <div class="nav-section">
       <div class="nav-label">Workspace</div>
-      <div class="nav-item" onclick="showPage('reports', this)">
+      <div class="nav-item" data-label="Reports" onclick="showPage('reports', this)">
         <span class="icon">📋</span> Reports
       </div>
-      <div class="nav-item" onclick="showPage('inbox', this)">
+      <div class="nav-item" data-label="Inbox" onclick="showPage('inbox', this)">
         <span class="icon">📬</span> Inbox
         <span class="nav-badge" style="background:var(--red)">3</span>
       </div>
-      <div class="nav-item" onclick="showPage('settings', this)">
+      <div class="nav-item" data-label="Settings" onclick="showPage('settings', this)">
         <span class="icon">⚙️</span> Settings
       </div>
     </div>
@@ -739,23 +782,34 @@
 
     <!-- JOBS PAGE -->
     <div class="page" id="page-jobs">
-      <div class="filters-bar">
-        <select class="filter-select" onchange="filterJobs(this.value)">
+      <div class="filters-bar" style="flex-wrap:wrap;gap:8px;">
+        <!-- Job search -->
+        <div style="display:flex;align-items:center;gap:0;background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:200px;flex:1;max-width:300px;">
+          <span style="padding:0 10px;color:var(--text3);">🔍</span>
+          <input type="text" id="job-search" placeholder="Search jobs..." oninput="renderJobs()"
+            style="flex:1;background:transparent;border:none;outline:none;padding:8px 8px;font-size:13px;color:var(--text);font-family:inherit;">
+        </div>
+        <select class="filter-select" id="job-dept-filter" onchange="renderJobs()">
           <option value="">All Departments</option>
-          <option>Engineering</option><option>Design</option><option>Product</option>
-          <option>Marketing</option><option>Sales</option><option>Operations</option>
         </select>
-        <select class="filter-select" onchange="filterJobStatus(this.value)">
+        <select class="filter-select" id="job-status-filter" onchange="renderJobs()">
           <option value="">All Status</option>
           <option>Active</option><option>Paused</option><option>Closed</option>
         </select>
-        <select class="filter-select">
-          <option>All Types</option><option>Full-time</option><option>Part-time</option><option>Contract</option>
+        <select class="filter-select" id="job-type-filter" onchange="renderJobs()">
+          <option value="">All Types</option>
+          <option>Full-time</option><option>Part-time</option><option>Contract</option><option>Internship</option>
         </select>
-        <span style="color:var(--text3);font-size:12px;margin-left:auto" id="jobs-count">12 jobs</span>
+        <select class="filter-select" id="job-sort" onchange="renderJobs()">
+          <option value="date">Sort: Newest</option>
+          <option value="applicants">Sort: Most Applicants</option>
+          <option value="title">Sort: Title A–Z</option>
+          <option value="priority">Sort: Priority</option>
+        </select>
+        <span style="color:var(--text3);font-size:12px;margin-left:auto" id="jobs-count"></span>
       </div>
-      <div class="panel">
-        <div class="panel-body" id="jobs-list"></div>
+      <div class="panel" style="overflow:hidden;">
+        <div id="jobs-list"></div>
       </div>
     </div>
 
@@ -1301,32 +1355,96 @@ function renderDashboard() {
     <div class="bar ${i===3?'active':''}" style="height:${Math.round(v/mx*100)}%" data-tip="${v} applicants"></div>`).join('');
 }
 
-function renderJobs(filter='', statusFilter='') {
-  let filtered = jobs;
-  if(filter) filtered = filtered.filter(j=>j.dept===filter);
-  if(statusFilter) filtered = filtered.filter(j=>j.status===statusFilter);
-  document.getElementById('jobs-count').textContent = filtered.length + ' jobs';
-  document.getElementById('jobs-list').innerHTML = filtered.length ? filtered.map(j=>`
-    <div class="job-item" onclick="openJobDetail(${j.id})">
-      <div class="job-avatar" style="background:${j.color}22;font-size:20px">${j.icon}</div>
-      <div class="job-info">
-        <div class="job-title">${j.title}</div>
-        <div class="job-meta">
-          <span>${j.dept}</span><span>·</span><span>${j.type}</span><span>·</span><span>${j.location}</span>
+function renderJobs() {
+  const searchQ = (document.getElementById('job-search')?.value||'').trim().toLowerCase();
+  const deptF   = document.getElementById('job-dept-filter')?.value||'';
+  const statusF = document.getElementById('job-status-filter')?.value||'';
+  const typeF   = document.getElementById('job-type-filter')?.value||'';
+  const sortV   = document.getElementById('job-sort')?.value||'date';
+
+  let filtered = [...jobs];
+  if(searchQ) filtered = filtered.filter(j=>[j.title,j.dept,j.location,j.type,(j.skills||[]).join(' ')].join(' ').toLowerCase().includes(searchQ));
+  if(deptF)   filtered = filtered.filter(j=>j.dept===deptF);
+  if(statusF) filtered = filtered.filter(j=>j.status===statusF);
+  if(typeF)   filtered = filtered.filter(j=>j.type===typeF);
+
+  const prioOrder = {High:0,Medium:1,Low:2};
+  if(sortV==='title')      filtered.sort((a,b)=>a.title.localeCompare(b.title));
+  else if(sortV==='applicants') filtered.sort((a,b)=>(b.applicants||0)-(a.applicants||0));
+  else if(sortV==='priority')   filtered.sort((a,b)=>(prioOrder[a.priority]||1)-(prioOrder[b.priority]||1));
+  else filtered.sort((a,b)=>new Date(b.posted||0)-new Date(a.posted||0));
+
+  const countEl = document.getElementById('jobs-count');
+  if(countEl) countEl.textContent = filtered.length + ' job' + (filtered.length!==1?'s':'');
+
+  const el = document.getElementById('jobs-list');
+  if(!filtered.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">💼</div><div class="empty-title">No jobs found</div><div class="empty-desc">Try adjusting your filters</div></div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map(j=>{
+    const jobCands = candidates.filter(c=>getCandJobIds(c).includes(j.id));
+    const total = jobCands.length;
+    // Pipeline breakdown
+    const stageCounts = stages.map(s=>({ s, n: jobCands.filter(c=>getCandStageForJob(c,j.id)===s).length }));
+    const hired  = stageCounts.find(x=>x.s==='Hired')?.n||0;
+    const intvw  = stageCounts.find(x=>x.s==='Interview')?.n||0;
+    const offer  = stageCounts.find(x=>x.s==='Offer')?.n||0;
+
+    // Pipeline mini-bar segments
+    const pipeBar = total>0 ? stageCounts.filter(x=>x.n>0).map(x=>
+      `<div class="job-pipeline-seg" title="${x.s}: ${x.n}" style="flex:${x.n};background:${stageColors[x.s]||'var(--border)'};opacity:0.85;"></div>`
+    ).join('') : `<div style="flex:1;background:var(--border);border-radius:2px;"></div>`;
+
+    const prioClass = j.priority==='High'?'badge-red':j.priority==='Medium'?'badge-amber':'badge-gray';
+    const statusClass = j.status==='Active'?'badge-green':j.status==='Paused'?'badge-amber':'badge-gray';
+
+    return `<div class="job-item" onclick="openJobDetail(${j.id})" style="flex-direction:column;align-items:stretch;padding:16px 20px;gap:8px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="job-avatar" style="background:${j.color}22;font-size:20px;flex-shrink:0;">${j.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap;">
+            <div class="job-title" style="margin:0;">${searchQ?highlightMatch(j.title,searchQ):escapeHtml(j.title)}</div>
+            <span class="badge ${statusClass}" style="font-size:10px;">${j.status}</span>
+            <span class="badge ${prioClass}" style="font-size:10px;">${j.priority}</span>
+          </div>
+          <div class="job-meta">
+            <span>${j.dept}</span><span>·</span><span>${j.type}</span><span>·</span><span>${j.location}</span>
+            ${j.salary&&j.salary!=='TBD'?`<span>·</span><span style="font-family:'JetBrains Mono';font-size:11px">${j.salary}</span>`:''}
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;font-size:12px;color:var(--text3);flex-shrink:0;text-align:center;">
+          <div><div style="font-size:16px;font-weight:800;color:var(--accent);">${total}</div><div>Total</div></div>
+          <div><div style="font-size:16px;font-weight:800;color:var(--amber);">${intvw}</div><div>Interview</div></div>
+          <div><div style="font-size:16px;font-weight:800;color:var(--purple);">${offer}</div><div>Offer</div></div>
+          <div><div style="font-size:16px;font-weight:800;color:var(--green);">${hired}</div><div>Hired</div></div>
         </div>
       </div>
-      <div class="job-right" style="flex-direction:row;align-items:center;gap:10px">
-        <span style="font-size:12px;color:var(--text3)">${j.applicants} applicants</span>
-        <span style="font-size:12px;color:var(--text3)">${j.salary}</span>
-        <span class="badge ${j.priority==='High'?'badge-red':j.priority==='Medium'?'badge-amber':'badge-gray'}">${j.priority}</span>
-        <span class="badge ${j.status==='Active'?'badge-green':j.status==='Paused'?'badge-amber':'badge-gray'}">${j.status}</span>
+      <!-- Inline pipeline bar -->
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:3px;">
+          <span>Pipeline</span>
+          <span>${total} candidate${total!==1?'s':''}</span>
+        </div>
+        <div class="job-pipeline-bar">${pipeBar}</div>
+        <!-- Stage breakdown labels -->
+        ${total>0?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+          ${stageCounts.filter(x=>x.n>0).map(x=>`<span style="font-size:10px;color:${stageColors[x.s]||'var(--text3)'};">● ${x.s} <strong>${x.n}</strong></span>`).join('')}
+        </div>`:'<div style="font-size:11px;color:var(--text3);margin-top:4px;">No candidates yet — <span style="color:var(--accent);cursor:pointer;" onclick="event.stopPropagation();openModal(\'addCandidate\')">Add one</span></div>'}
       </div>
-    </div>`).join('')
-    : '<div class="empty-state"><div class="empty-icon">💼</div><div class="empty-title">No jobs found</div><div class="empty-desc">Try adjusting your filters</div></div>';
+    </div>`;
+  }).join('');
+
+  // Repopulate dept filter with custom depts
+  const deptEl = document.getElementById('job-dept-filter');
+  if(deptEl && deptEl.options.length <= 1) {
+    getDepts().forEach(d=>{ const o=document.createElement('option'); o.value=d; o.textContent=d; deptEl.appendChild(o); });
+  }
 }
 
-function filterJobs(dept) { renderJobs(dept, document.querySelector('#page-jobs .filter-select:nth-child(2)').value); }
-function filterJobStatus(status) { renderJobs(document.querySelector('#page-jobs .filter-select:nth-child(1)').value, status); }
+function filterJobs(dept) { if(document.getElementById('job-dept-filter')) document.getElementById('job-dept-filter').value=dept; renderJobs(); }
+function filterJobStatus(status) { if(document.getElementById('job-status-filter')) document.getElementById('job-status-filter').value=status; renderJobs(); }
 
 function escapeHtml(str) {
   return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1452,34 +1570,147 @@ function renderPipeline() {
 }
 
 function renderInterviews() {
-  document.getElementById('interview-list').innerHTML = interviews.map(iv=>{
+  // Collect ALL interviews from all candidates
+  const allIVs = [];
+  candidates.forEach(c => {
+    (c.interviews||[]).forEach((iv, idx) => {
+      allIVs.push({ ...iv, candidateId: c.id, candName: c.name, candColor: c.color, candInitials: c.initials, ivIdx: idx });
+    });
+  });
+  // Sort by date+time, upcoming first
+  allIVs.sort((a,b) => {
+    const da = new Date(a.date + 'T' + (a.time||'00:00'));
+    const db = new Date(b.date + 'T' + (b.time||'00:00'));
+    return da - db;
+  });
+
+  const upcoming = allIVs.filter(iv => iv.status !== 'Cancelled' && iv.status !== 'Completed');
+  const past     = allIVs.filter(iv => iv.status === 'Completed' || iv.status === 'Cancelled');
+
+  const renderIVCard = (iv) => {
     const c = getCand(iv.candidateId);
     const job = c ? getJob(c.jobId) : null;
-    return `<div class="activity-item" style="cursor:pointer" onclick="openCandProfile(${iv.candidateId})">
-      <div class="cand-avatar" style="background:${c?c.color:'#888'}33;color:${c?c.color:'#888'};width:34px;height:34px;border-radius:8px;font-size:12px">${c?c.initials:'?'}</div>
-      <div style="flex:1">
-        <div style="font-weight:600;font-size:13px">${c?c.name:'Unknown'}</div>
-        <div style="font-size:12px;color:var(--text3)">${job?job.title:'–'} · ${iv.round}</div>
-        <div style="display:flex;gap:8px;margin-top:5px">
-          <span class="badge badge-blue">${iv.type}</span>
-          <span style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono'">${iv.date} · ${iv.time}</span>
-          <span style="font-size:11px;color:var(--text3)">with ${iv.interviewer}</span>
+    const statusClass = iv.status==='Completed'?'badge-green':iv.status==='Cancelled'?'badge-red':'badge-blue';
+    const dateStr = iv.date ? new Date(iv.date).toLocaleDateString('en-MY',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '–';
+    return `<div style="display:flex;align-items:flex-start;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+      <div class="cand-avatar" style="background:${iv.candColor||'#888'}33;color:${iv.candColor||'#888'};width:36px;height:36px;border-radius:8px;font-size:12px;cursor:pointer;flex-shrink:0;" onclick="openCandProfile(${iv.candidateId})">${iv.candInitials||'?'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap;">
+          <span style="font-weight:700;font-size:13px;cursor:pointer;color:var(--accent);" onclick="openCandProfile(${iv.candidateId})">${iv.candName}</span>
+          <span class="badge badge-gray" style="font-size:10px;">${iv.round||'Interview'}</span>
+          <span class="badge ${statusClass}" style="font-size:10px;">${iv.status||'Scheduled'}</span>
         </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">${job?job.title:'–'} · ${iv.type||'Video Call'} · ${iv.duration||'1 hour'}</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--text3);">
+          <span>📅 ${dateStr}</span>
+          <span>🕐 ${iv.time||'–'}</span>
+          <span>👤 ${iv.interviewer||'–'}</span>
+          ${iv.location?`<span>📍 ${iv.location}</span>`:''}
+        </div>
+        ${iv.notes?`<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic;">${iv.notes}</div>`:''}
       </div>
-    </div>`;}).join('');
+      <div style="display:flex;gap:4px;flex-shrink:0;">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openEditInterview(${iv.candidateId},${iv.ivIdx})" title="Edit">✏️</button>
+        ${iv.status!=='Completed'?`<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="markInterviewDone(${iv.candidateId},${iv.ivIdx});renderInterviews()" title="Mark done">✓</button>`:''}
+        ${iv.status!=='Cancelled'?`<button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--red);" onclick="cancelInterview(${iv.candidateId},${iv.ivIdx});renderInterviews()" title="Cancel">✕</button>`:''}
+      </div>
+    </div>`;
+  };
 
-  const cats = ['Technical Skills','Communication','Problem Solving','Culture Fit','Leadership'];
-  const scores = [88,72,91,85,68];
-  document.getElementById('scorecard').innerHTML = cats.map((c,i)=>`
-    <div style="margin-bottom:12px">
+  document.getElementById('interview-list').innerHTML =
+    (upcoming.length ? upcoming.map(renderIVCard).join('') : '<div style="text-align:center;padding:32px;color:var(--text3);font-size:13px;">No upcoming interviews</div>') +
+    (past.length ? `<div style="padding:10px 20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);background:var(--bg3);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">Past (${past.length})</div>` + past.slice(0,5).map(renderIVCard).join('') : '');
+
+  // Scorecard — compute real average scores from feedback
+  const allFeedback = candidates.flatMap(c=>c.feedback||[]);
+  const cats = ['Communication Skills','Technical Knowledge','Problem Solving','Culture Fit','Work Experience'];
+  const COMPETENCIES_MAP = {
+    'Communication Skills':'Communication Skills','Technical Knowledge':'Technical Knowledge',
+    'Problem Solving':'Problem Solving','Culture Fit':'Culture Fit','Work Experience':'Work Experience'
+  };
+  document.getElementById('scorecard').innerHTML = cats.map(cat=>{
+    const ratings = allFeedback.map(fb=>(fb.skillRatings||{})[cat]).filter(r=>r!=null&&!isNaN(r));
+    const avg = ratings.length ? Math.round((ratings.reduce((a,b)=>a+b,0)/ratings.length)*20) : null;
+    return `<div style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
-        <span style="color:var(--text2)">${c}</span>
-        <span style="font-weight:700;font-family:'JetBrains Mono'">${scores[i]}</span>
+        <span style="color:var(--text2)">${cat}</span>
+        <span style="font-weight:700;font-family:'JetBrains Mono'">${avg!=null?avg+'/100':'–'}</span>
       </div>
       <div class="score-bar" style="height:6px">
-        <div class="score-fill" style="width:${scores[i]}%;background:${scores[i]>=80?'var(--green)':scores[i]>=60?'var(--accent)':'var(--amber)'}"></div>
+        ${avg!=null?`<div class="score-fill" style="width:${avg}%;background:${avg>=80?'var(--green)':avg>=60?'var(--accent)':'var(--amber)'}"></div>`:''}
       </div>
-    </div>`).join('');
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">${ratings.length} rating${ratings.length!==1?'s':''}</div>
+    </div>`;
+  }).join('');
+}
+
+function openEditInterview(candId, ivIdx) {
+  const c = getCand(candId); if(!c) return;
+  const iv = (c.interviews||[])[ivIdx]; if(!iv) return;
+  document.getElementById('modal-title').textContent = '✏️ Edit Interview — ' + c.name;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="form-group"><label>Interview Round</label>
+      <select id="eiv-round">
+        ${HIRING_ROUNDS.map(r=>`<option ${iv.round===r.label?'selected':''}>${r.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Type</label>
+        <select id="eiv-type">
+          ${['Video Call','Phone Call','In Person','Panel Interview','Technical Test'].map(t=>`<option ${iv.type===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>Duration</label>
+        <select id="eiv-duration">
+          ${['30 minutes','45 minutes','1 hour','1.5 hours','2 hours'].map(d=>`<option ${iv.duration===d?'selected':''}>${d}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Date</label>
+        <input type="date" id="eiv-date" value="${iv.date||''}">
+      </div>
+      <div class="form-group"><label>Time</label>
+        <input type="time" id="eiv-time" value="${iv.time||'10:00'}">
+      </div>
+    </div>
+    <div class="form-group"><label>Interviewer(s)</label>
+      <input type="text" id="eiv-interviewer" value="${iv.interviewer||''}" placeholder="e.g. Ahmad, Sarah">
+    </div>
+    <div class="form-group"><label>Location / Meeting Link</label>
+      <input type="text" id="eiv-location" value="${iv.location||''}" placeholder="e.g. Zoom link or Office Room 3A">
+    </div>
+    <div class="form-group"><label>Status</label>
+      <select id="eiv-status">
+        ${['Scheduled','Completed','Cancelled'].map(s=>`<option ${iv.status===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group"><label>Notes</label>
+      <textarea id="eiv-notes" style="min-height:70px;" placeholder="Any notes for interviewers...">${iv.notes||''}</textarea>
+    </div>`;
+  document.getElementById('modal-footer').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn btn-primary" onclick="saveEditInterview(' + candId + ',' + ivIdx + ')">Save Changes</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function saveEditInterview(candId, ivIdx) {
+  const c = getCand(candId); if(!c) return;
+  const iv = (c.interviews||[])[ivIdx]; if(!iv) return;
+  iv.round       = document.getElementById('eiv-round')?.value || iv.round;
+  iv.type        = document.getElementById('eiv-type')?.value || iv.type;
+  iv.duration    = document.getElementById('eiv-duration')?.value || iv.duration;
+  iv.date        = document.getElementById('eiv-date')?.value || iv.date;
+  iv.time        = document.getElementById('eiv-time')?.value || iv.time;
+  iv.interviewer = document.getElementById('eiv-interviewer')?.value.trim() || iv.interviewer;
+  iv.location    = document.getElementById('eiv-location')?.value.trim() || '';
+  iv.status      = document.getElementById('eiv-status')?.value || iv.status;
+  iv.notes       = document.getElementById('eiv-notes')?.value || '';
+  save(); closeModal();
+  // Refresh wherever we are
+  if(document.getElementById('page-candprofile').classList.contains('active')) refreshRightPanel(candId);
+  if(document.getElementById('page-interviews').classList.contains('active')) renderInterviews();
+  showToast('Interview updated! ✅');
 }
 
 function renderOffers() {
@@ -2681,7 +2912,7 @@ function buildInterviewsHTML(c, allInterviews, allFeedback) {
   }
 
   allInterviews.forEach((iv, idx) => {
-    const ivFeedback = allFeedback.filter(fb => fb.round === iv.round);
+    const ivFeedback = allFeedback.filter(fb => fb.round === iv.round).slice().sort((a,b)=>new Date(b.createdAt||b.date||0)-new Date(a.createdAt||a.date||0));
     const ac = colors[idx % colors.length];
     const initials = (iv.interviewer||'?').split(',')[0].trim().split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase() || '?';
     const statusBadge = iv.status==='Completed'?'badge-green':iv.status==='Cancelled'?'badge-red':'badge-blue';
@@ -3307,15 +3538,19 @@ function rejectCandidate(id) {
 function markInterviewDone(candId, ivIdx) {
   const c = getCand(candId); if(!c) return;
   c.interviews[ivIdx].status = 'Completed';
-  save(); openCandProfile(candId);
-  showToast('Interview marked as completed!');
+  save();
+  refreshRightPanel(candId);
+  if(document.getElementById('page-interviews').classList.contains('active')) renderInterviews();
+  showToast('Interview marked as completed! ✅');
 }
 
 function cancelInterview(candId, ivIdx) {
   const c = getCand(candId); if(!c) return;
   if(!confirm('Cancel this interview?')) return;
   c.interviews[ivIdx].status = 'Cancelled';
-  save(); openCandProfile(candId);
+  save();
+  refreshRightPanel(candId);
+  if(document.getElementById('page-interviews').classList.contains('active')) renderInterviews();
   showToast('Interview cancelled');
 }
 
@@ -3733,10 +3968,30 @@ function openJobDetail(id) {
   if(!j) return;
   document.getElementById('dp-name').textContent = j.title;
   document.getElementById('dp-role').textContent = j.dept + ' · ' + j.type;
-  const jobCands = candidates.filter(c=>c.jobId===j.id);
+  renderJobDetailPanel(id);
+  document.getElementById('dp-move-btn').style.display='none';
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+function renderJobDetailPanel(id, sortBy='date', selectedIds=[]) {
+  const j = getJob(id); if(!j) return;
+  const jobCands = candidates.filter(c=>getCandJobIds(c).includes(id));
+
+  // Sort candidates
+  let sortedCands = [...jobCands];
+  if(sortBy==='name')   sortedCands.sort((a,b)=>a.name.localeCompare(b.name));
+  else if(sortBy==='score')  sortedCands.sort((a,b)=>b.score-a.score);
+  else if(sortBy==='stage')  sortedCands.sort((a,b)=>stages.indexOf(getCandStageForJob(a,id))-stages.indexOf(getCandStageForJob(b,id)));
+  else if(sortBy==='title')  sortedCands.sort((a,b)=>(a.currentTitle||'').localeCompare(b.currentTitle||''));
+  else sortedCands.sort((a,b)=>new Date(b.applied||0)-new Date(a.applied||0));
+
+  const stageCounts = stages.map(s=>({ s, n: jobCands.filter(c=>getCandStageForJob(c,id)===s).length }));
+  const allSelected = selectedIds.length===sortedCands.length && sortedCands.length>0;
+
   document.getElementById('dp-body').innerHTML = `
+    <!-- Badges + Actions -->
     <div class="detail-section">
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
         <span class="badge ${j.status==='Active'?'badge-green':j.status==='Paused'?'badge-amber':'badge-gray'}">${j.status}</span>
         <span class="badge badge-gray">${j.type}</span>
         <span class="badge ${j.priority==='High'?'badge-red':j.priority==='Medium'?'badge-amber':'badge-gray'}">${j.priority} Priority</span>
@@ -3744,54 +3999,201 @@ function openJobDetail(id) {
     </div>
     <div class="detail-section">
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" onclick="openEditJob(${j.id})">✏️ Edit Job</button>
-        <button class="btn btn-ghost btn-sm" onclick="copyJobLink(${j.id})">🔗 Copy Link</button>
+        <button class="btn btn-primary btn-sm" onclick="openEditJob(${j.id})">✏️ Edit</button>
         <button class="btn btn-ghost btn-sm" style="color:var(--amber)" onclick="toggleJobStatus(${j.id},'${j.status==='Active'?'Paused':'Active'}')">${j.status==='Active'?'⏸ Pause':'▶ Activate'}</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="toggleJobStatus(${j.id},'Closed')">✕ Close</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:var(--red-dim)" onclick="deleteJob(${j.id})">🗑 Delete</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyJobLink(${j.id})">🔗 Copy</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteJob(${j.id})">🗑 Delete</button>
       </div>
     </div>
+
+    <!-- Details -->
     <div class="detail-section">
       <div class="detail-section-title">Details</div>
       <div class="detail-row"><span class="detail-row-label">Department</span><span class="detail-row-val">${j.dept}</span></div>
       <div class="detail-row"><span class="detail-row-label">Location</span><span class="detail-row-val">${j.location}</span></div>
       <div class="detail-row"><span class="detail-row-label">Salary</span><span class="detail-row-val" style="font-family:'JetBrains Mono'">${j.salary}</span></div>
       <div class="detail-row"><span class="detail-row-label">Posted</span><span class="detail-row-val" style="font-family:'JetBrains Mono';font-size:12px">${j.posted}</span></div>
-      <div class="detail-row"><span class="detail-row-label">Applicants</span><span class="detail-row-val">${j.applicants}</span></div>
       <div class="detail-row">
         <span class="detail-row-label">Projects</span>
-        <span class="detail-row-val">
-          ${projects.filter(p=>(p.jobIds||[]).includes(j.id)).map(p=>
-            `<span onclick="openProjectDetail(${p.id})" style="background:${p.color}22;color:${p.color};border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;margin-right:4px;">${p.icon||'📁'} ${p.name}</span>`
-          ).join('') || '<span style="color:var(--text3);font-size:12px;">None</span>'}
-        </span>
+        <span class="detail-row-val">${projects.filter(p=>(p.jobIds||[]).includes(j.id)).map(p=>
+          `<span onclick="openProjectDetail(${p.id})" style="background:${p.color}22;color:${p.color};border-radius:4px;padding:2px 7px;font-size:11px;font-weight:600;cursor:pointer;">${p.icon||'📁'} ${p.name}</span>`
+        ).join(' ')||'<span style="color:var(--text3);font-size:12px">None</span>'}</span>
       </div>
     </div>
+
+    <!-- Pipeline summary -->
     <div class="detail-section">
-      <div class="detail-section-title">Required Skills</div>
-      <div class="skill-tags">${(j.skills||[]).map(s=>`<span class="skill-tag">${s}</span>`).join('')||'<span style="color:var(--text3);font-size:12px">None listed</span>'}</div>
+      <div class="detail-section-title">Pipeline</div>
+      <div style="display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;margin-bottom:8px;">
+        ${stageCounts.filter(x=>x.n>0).map(x=>`<div title="${x.s}: ${x.n}" style="flex:${x.n};background:${stageColors[x.s]};opacity:0.85;"></div>`).join('')||'<div style="flex:1;background:var(--border);border-radius:4px;"></div>'}
+      </div>
+      ${stageCounts.map(x=>`<div class="detail-row" style="cursor:pointer" onclick="filterCandsByJob(${j.id},'${x.s}')">
+        <span class="detail-row-label" style="color:${stageColors[x.s]||'var(--text2)'}">${x.s}</span>
+        <span class="detail-row-val">${x.n}</span>
+      </div>`).join('')}
     </div>
-    ${j.description?`<div class="detail-section"><div class="detail-section-title">Description</div><div class="note-box" style="white-space:pre-wrap">${j.description}</div></div>`:''}
-    <div class="detail-section">
-      <div class="detail-section-title">Pipeline (${jobCands.length} candidates)</div>
-      ${stages.map(s=>{
-        const cnt = jobCands.filter(c=>c.stage===s).length;
-        return `<div class="detail-row" style="cursor:pointer" onclick="filterCandsByJob(${j.id},'${s}')">
-          <span class="detail-row-label" style="color:${stageColors[s]}">${s}</span>
-          <span class="detail-row-val">${cnt}</span>
-        </div>`;}).join('')}
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-title">Recent Candidates</div>
-      ${jobCands.slice(0,4).map(c=>`
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openCandProfile(${c.id})">
-          <div class="cand-avatar" style="width:28px;height:28px;font-size:11px;background:${c.color}33;color:${c.color}">${c.initials}</div>
-          <div style="flex:1"><div style="font-size:12px;font-weight:600">${c.name}</div></div>
-          <span class="badge ${stageBadge[c.stage]}" style="font-size:10px">${c.stage}</span>
-        </div>`).join('')||'<div style="color:var(--text3);font-size:12px">No candidates yet</div>'}
+
+    <!-- Candidates section with sort + multi-select -->
+    <div class="detail-section" style="gap:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div class="detail-section-title" style="margin:0;">Candidates (${jobCands.length})</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <select onchange="renderJobDetailPanel(${id},this.value,[])" style="font-size:11px;padding:3px 6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;">
+            <option value="date" ${sortBy==='date'?'selected':''}>Latest</option>
+            <option value="name" ${sortBy==='name'?'selected':''}>Name A–Z</option>
+            <option value="score" ${sortBy==='score'?'selected':''}>Score ↓</option>
+            <option value="stage" ${sortBy==='stage'?'selected':''}>Stage</option>
+            <option value="title" ${sortBy==='title'?'selected':''}>Job Title</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="openModal('addCandidate')" style="font-size:11px;">+ Add</button>
+        </div>
+      </div>
+
+      <!-- Select all row -->
+      ${sortedCands.length>0?`<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg3);border-radius:6px;margin-bottom:6px;font-size:12px;color:var(--text3);">
+        <input type="checkbox" id="select-all-cands-${id}" ${allSelected?'checked':''} onchange="toggleSelectAllCands(${id},'${sortBy}')" style="cursor:pointer;">
+        <label for="select-all-cands-${id}" style="cursor:pointer;">${allSelected?'Deselect all':'Select all ' + sortedCands.length}</label>
+        ${selectedIds.length>0?`<span style="color:var(--accent);font-weight:700;margin-left:auto;">${selectedIds.length} selected</span>`:''}
+      </div>`:''}
+
+      <!-- Candidate rows -->
+      <div id="job-cand-list-${id}">
+        ${sortedCands.length ? sortedCands.map(c=>{
+          const stage = getCandStageForJob(c,id);
+          const isSelected = selectedIds.includes(c.id);
+          return `<div class="detail-row ${isSelected?'cand-row-selected':''}" style="cursor:pointer;border-radius:6px;padding:8px;margin-bottom:4px;transition:background 0.1s;" onmouseover="if(!this.classList.contains('cand-row-selected'))this.style.background='var(--bg3)'" onmouseout="if(!this.classList.contains('cand-row-selected'))this.style.background=''">
+            <input type="checkbox" ${isSelected?'checked':''} onclick="event.stopPropagation();toggleCandSelect(${id},${c.id},'${sortBy}')" style="cursor:pointer;margin-right:6px;">
+            <div class="cand-avatar" style="width:28px;height:28px;font-size:11px;background:${c.color}33;color:${c.color};flex-shrink:0;" onclick="openCandProfile(${c.id})">${c.initials}</div>
+            <div style="flex:1;min-width:0;" onclick="openCandProfile(${c.id})">
+              <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.name)}</div>
+              <div style="font-size:10px;color:var(--text3);">${c.currentTitle||c.exp||''}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
+              <span class="badge ${stageBadge[stage]||'badge-gray'}" style="font-size:10px;">${stage}</span>
+              <span style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono';">${c.score}</span>
+            </div>
+          </div>`;
+        }).join('') : '<div style="color:var(--text3);font-size:12px;padding:12px 0;text-align:center;">No candidates yet</div>'}
+      </div>
+
+      <!-- Bulk action bar -->
+      ${selectedIds.length>0?`<div class="bulk-action-bar">
+        <span style="font-size:12px;font-weight:700;color:var(--accent);">${selectedIds.length} selected</span>
+        <button class="btn btn-ghost btn-sm" onclick="bulkMoveStage(${id},[${selectedIds}],'${sortBy}')">↕ Move Stage</button>
+        <button class="btn btn-ghost btn-sm" onclick="bulkAddToJob(${id},[${selectedIds}],'${sortBy}')">+ Add to Job</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="bulkDelete(${id},[${selectedIds}],'${sortBy}')">🗑 Delete</button>
+        <button class="btn btn-ghost btn-sm" onclick="renderJobDetailPanel(${id},'${sortBy}',[])" style="margin-left:auto;">✕ Clear</button>
+      </div>`:''}
     </div>`;
-  document.getElementById('dp-move-btn').style.display='none';
-  document.getElementById('detail-panel').classList.add('open');
+}
+
+function toggleSidebar() {
+  document.body.classList.toggle('sidebar-collapsed');
+  const btn = document.getElementById('sidebar-toggle');
+  if(btn) btn.textContent = document.body.classList.contains('sidebar-collapsed') ? '›' : '‹';
+  localStorage.setItem('tf_sidebar_collapsed', document.body.classList.contains('sidebar-collapsed')?'1':'0');
+}
+
+function initSidebarState() {
+  if(localStorage.getItem('tf_sidebar_collapsed')==='1') {
+    document.body.classList.add('sidebar-collapsed');
+    const btn = document.getElementById('sidebar-toggle');
+    if(btn) btn.textContent = '›';
+  }
+}
+
+// ===================== MULTI-SELECT & BULK ACTIONS =====================
+let _jobDetailState = {}; // { jobId, sortBy, selectedIds }
+
+function toggleCandSelect(jobId, candId, sortBy) {
+  const state = _jobDetailState[jobId] || { selectedIds:[] };
+  const idx = state.selectedIds.indexOf(candId);
+  if(idx>=0) state.selectedIds.splice(idx,1);
+  else state.selectedIds.push(candId);
+  _jobDetailState[jobId] = state;
+  renderJobDetailPanel(jobId, sortBy, state.selectedIds);
+}
+
+function toggleSelectAllCands(jobId, sortBy) {
+  const jobCands = candidates.filter(c=>getCandJobIds(c).includes(jobId));
+  const state = _jobDetailState[jobId] || { selectedIds:[] };
+  const allSelected = state.selectedIds.length === jobCands.length;
+  state.selectedIds = allSelected ? [] : jobCands.map(c=>c.id);
+  _jobDetailState[jobId] = state;
+  renderJobDetailPanel(jobId, sortBy, state.selectedIds);
+}
+
+function bulkMoveStage(jobId, candIds, sortBy) {
+  document.getElementById('modal-title').textContent = '↕ Move ' + candIds.length + ' Candidates';
+  document.getElementById('modal-body').innerHTML =
+    '<div class="form-group"><label>Move all selected to stage</label>' +
+    '<select id="bulk-stage">' + stages.map(s=>'<option>'+s+'</option>').join('') + '</select></div>' +
+    '<div style="font-size:12px;color:var(--text3);margin-top:8px;">This will update the stage for all ' + candIds.length + ' selected candidates.</div>';
+  document.getElementById('modal-footer').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn btn-primary" onclick="confirmBulkMoveStage(' + jobId + ',[' + candIds + '],\''+sortBy+'\')">Move All</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function confirmBulkMoveStage(jobId, candIds, sortBy) {
+  const newStage = document.getElementById('bulk-stage')?.value;
+  if(!newStage) return;
+  candIds.forEach(id=>{
+    const c = getCand(id); if(!c) return;
+    setCandStageForJob(c, jobId, newStage);
+    addToTimeline(c, 'Moved to ' + newStage, stageColors[newStage]||'var(--accent)');
+  });
+  save(); closeModal();
+  _jobDetailState[jobId] = { selectedIds:[] };
+  renderJobDetailPanel(jobId, sortBy, []);
+  renderJobs();
+  showToast('Moved ' + candIds.length + ' candidates to ' + newStage + ' ✅');
+}
+
+function bulkAddToJob(jobId, candIds, sortBy) {
+  const available = jobs.filter(j=>j.id!==jobId&&j.status!=='Closed');
+  document.getElementById('modal-title').textContent = '+ Add ' + candIds.length + ' Candidates to Job';
+  document.getElementById('modal-body').innerHTML =
+    '<div class="form-group"><label>Select a job to add them to</label>' +
+    '<div style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;">' +
+    available.map(j=>'<label style="display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;cursor:pointer;">' +
+      '<input type="radio" name="bulk-job" value="'+j.id+'">' +
+      '<div style="width:28px;height:28px;border-radius:6px;background:'+(j.color||'#4f8ef7')+'22;color:'+(j.color||'#4f8ef7')+';display:flex;align-items:center;justify-content:center;font-size:13px;">'+j.icon+'</div>' +
+      '<div style="flex:1;"><div style="font-size:13px;font-weight:700;">'+j.title+'</div><div style="font-size:11px;color:var(--text3);">'+j.dept+' · '+j.location+'</div></div>' +
+      '</label>').join('') + '</div></div>';
+  document.getElementById('modal-footer').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn btn-primary" onclick="confirmBulkAddToJob('+jobId+',['+candIds+'],\''+sortBy+'\')">Add to Job</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function confirmBulkAddToJob(sourceJobId, candIds, sortBy) {
+  const sel = document.querySelector('input[name="bulk-job"]:checked');
+  if(!sel) { showToast('Please select a job'); return; }
+  const targetJobId = parseInt(sel.value);
+  candIds.forEach(id=>{
+    const c = getCand(id); if(!c) return;
+    if(!getCandJobIds(c).includes(targetJobId)) addCandJobApplication(c, targetJobId, 'Applied');
+  });
+  save(); closeModal();
+  _jobDetailState[sourceJobId] = { selectedIds:[] };
+  renderJobDetailPanel(sourceJobId, sortBy, []);
+  showToast('Added ' + candIds.length + ' candidates to ' + getJob(targetJobId)?.title + ' ✅');
+}
+
+function bulkDelete(jobId, candIds, sortBy) {
+  if(!confirm('Delete ' + candIds.length + ' candidates? This cannot be undone.')) return;
+  candIds.forEach(id=>{
+    try { localStorage.removeItem('tf_resume_'+id); } catch(e){}
+    const c = getCand(id);
+    if(c) { const j=getJob(c.jobId); if(j&&j.applicants>0) j.applicants--; }
+  });
+  candidates = candidates.filter(c=>!candIds.includes(c.id));
+  save();
+  _jobDetailState[jobId] = { selectedIds:[] };
+  renderJobDetailPanel(jobId, sortBy, []);
+  renderJobs();
+  showToast('Deleted ' + candIds.length + ' candidates');
 }
 
 function toggleJobStatus(id, newStatus) {
@@ -3819,52 +4221,137 @@ function filterCandsByJob(jobId, stage) {
 
 function openEditJob(id) {
   const j = getJob(id); if(!j) return;
-  const overlay = document.getElementById('modal-overlay');
   document.getElementById('modal-title').textContent = 'Edit Job — ' + j.title;
-  document.getElementById('modal-body').innerHTML = `
-    <div class="form-row">
-      <div class="form-group"><label>Job Title</label><input type="text" id="ej-title" value="${j.title}"></div>
-      <div class="form-group"><label>Department</label>
-        <select id="ej-dept">${getDeptOptions(j.dept)}</select>
+  document.getElementById('modal-body').innerHTML = buildJobFormHTML(j);
+  document.getElementById('modal-footer').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
+    '<button class="btn btn-primary" onclick="saveEditJob(' + id + ')">Save Changes</button>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function buildJobFormHTML(j) {
+  // j can be null for new job, or an existing job object for edit
+  const isEdit = !!j;
+  const v = (field, fallback='') => isEdit ? (j[field]||fallback) : fallback;
+  const sel = (field, val) => isEdit && j[field]===val ? 'selected' : '';
+  const customStages = getCustomStages().filter(s=>s.enabled);
+
+  return `
+    <div style="display:flex;flex-direction:column;gap:0;">
+      <!-- SECTION: Basic Info -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);padding:12px 0 6px;">📋 Basic Info</div>
+      <div class="form-row">
+        <div class="form-group"><label>Job Title *</label><input type="text" id="jf-title" value="${v('title')}" placeholder="e.g. Senior Frontend Engineer"></div>
+        <div class="form-group"><label>Department</label><select id="jf-dept">${getDeptOptions(v('dept'))}</select></div>
       </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Type</label>
-        <select id="ej-type"><option ${j.type==='Full-time'?'selected':''}>Full-time</option><option ${j.type==='Part-time'?'selected':''}>Part-time</option><option ${j.type==='Contract'?'selected':''}>Contract</option><option ${j.type==='Internship'?'selected':''}>Internship</option></select>
+      <div class="form-row">
+        <div class="form-group"><label>Employment Type</label>
+          <select id="jf-type">
+            ${['Full-time','Part-time','Contract','Internship','Freelance'].map(t=>`<option ${sel('type',t)||(!isEdit&&t==='Full-time'?'selected':'')}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label>Location</label><input type="text" id="jf-location" value="${v('location')}" placeholder="e.g. Kuala Lumpur / Remote"></div>
       </div>
-      <div class="form-group"><label>Location</label><input type="text" id="ej-location" value="${j.location}"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Salary</label><input type="text" id="ej-salary" value="${j.salary}"></div>
-      <div class="form-group"><label>Priority</label>
-        <select id="ej-priority"><option ${j.priority==='High'?'selected':''}>High</option><option ${j.priority==='Medium'?'selected':''}>Medium</option><option ${j.priority==='Low'?'selected':''}>Low</option></select>
+      <div class="form-row">
+        <div class="form-group"><label>Salary Min (MYR)</label><input type="number" id="jf-salmin" value="${v('salMin')}" placeholder="e.g. 6000"></div>
+        <div class="form-group"><label>Salary Max (MYR)</label><input type="number" id="jf-salmax" value="${v('salMax')}" placeholder="e.g. 10000"></div>
       </div>
-    </div>
-    <div class="form-group"><label>Status</label>
-      <select id="ej-status"><option ${j.status==='Active'?'selected':''}>Active</option><option ${j.status==='Paused'?'selected':''}>Paused</option><option ${j.status==='Closed'?'selected':''}>Closed</option></select>
-    </div>
-    <div class="form-group"><label>Required Skills (comma separated)</label><input type="text" id="ej-skills" value="${(j.skills||[]).join(', ')}"></div>
-    <div class="form-group"><label>Job Description</label><textarea id="ej-desc" style="min-height:100px">${j.description||''}</textarea></div>`;
-  document.getElementById('modal-footer').innerHTML = `
-    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-primary" onclick="saveEditJob(${id})">Save Changes</button>`;
-  overlay.classList.add('open');
+
+      <!-- SECTION: Requisition Details -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);padding:12px 0 6px;border-top:1px solid var(--border);margin-top:8px;">📝 Requisition Details</div>
+      <div class="form-row">
+        <div class="form-group"><label>Hiring Manager / Requester</label><input type="text" id="jf-hiringmanager" value="${v('hiringManager')}" placeholder="e.g. Ahmad Razif"></div>
+        <div class="form-group"><label>Recruiter Assigned</label><input type="text" id="jf-recruiter" value="${v('recruiter')}" placeholder="e.g. Fatin Firdaus"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Requisition Date</label><input type="date" id="jf-reqdate" value="${v('requisitionDate', new Date().toISOString().split('T')[0])}"></div>
+        <div class="form-group"><label>Target Start Date</label><input type="date" id="jf-startdate" value="${v('targetStartDate')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Headcount / Openings</label><input type="number" id="jf-headcount" value="${v('headcount',1)}" min="1" placeholder="1"></div>
+        <div class="form-group"><label>Priority</label>
+          <select id="jf-priority">
+            ${['High','Medium','Low'].map(p=>`<option ${sel('priority',p)||(!isEdit&&p==='Medium'?'selected':'')}>${p}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Cost Centre / Budget Code</label><input type="text" id="jf-costcentre" value="${v('costCentre')}" placeholder="e.g. CC-TECH-001"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="jf-status">
+            ${['Active','Paused','Closed'].map(s=>`<option ${sel('status',s)||(!isEdit&&s==='Active'?'selected':'')}>${s}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Reason for Hire</label>
+        <select id="jf-reasonforhire">
+          ${['New Headcount','Backfill','Replacement','Expansion','Temporary Coverage'].map(r=>`<option ${sel('reasonForHire',r)}>${r}</option>`).join('')}
+        </select>
+      </div>
+
+      <!-- SECTION: Job Details -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);padding:12px 0 6px;border-top:1px solid var(--border);margin-top:8px;">📄 Job Details</div>
+      <div class="form-group"><label>Job Description</label><textarea id="jf-desc" style="min-height:100px" placeholder="Responsibilities, requirements, what success looks like...">${v('description')}</textarea></div>
+      <div class="form-group"><label>Required Skills (comma separated)</label><input type="text" id="jf-skills" value="${v('skills',(j?.skills||[]).join(', '))}" placeholder="e.g. React, Node.js, TypeScript"></div>
+      <div class="form-group"><label>Internal Notes (not shown to candidates)</label><textarea id="jf-internalnotes" style="min-height:60px" placeholder="Any internal context, budget limits, preferences...">${v('internalNotes')}</textarea></div>
+
+      <!-- SECTION: Pipeline & Assessments -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);padding:12px 0 6px;border-top:1px solid var(--border);margin-top:8px;">🔀 Pipeline Stages</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;" id="jf-stages">
+        ${customStages.map(s=>{
+          const checked = isEdit ? (j.jobStages?.includes(s.name) ?? true) : true;
+          const locked = ['Applied','Hired','Rejected'].includes(s.name);
+          return `<label style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;">
+            <input type="checkbox" name="jf-stage" value="${s.name}" ${checked?'checked':''} ${locked?'disabled checked':''} style="accent-color:${s.color}">
+            <span style="font-size:12px;font-weight:600;color:${s.color}">${s.name}</span>
+          </label>`;
+        }).join('')}
+      </div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);padding:12px 0 6px;margin-top:4px;">✅ Assessments</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${['Technical Test','Take-home Assignment','Portfolio Review','Personality Assessment','Background Check','Reference Check'].map(a=>{
+          const checked = isEdit && (j.assessments||[]).includes(a);
+          return `<label style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;">
+            <input type="checkbox" name="jf-assessment" value="${a}" ${checked?'checked':''}>
+            <span style="font-size:12px;color:var(--text2)">${a}</span>
+          </label>`;
+        }).join('')}
+      </div>
+    </div>`;
 }
 
 function saveEditJob(id) {
   const j = getJob(id); if(!j) return;
-  j.title = document.getElementById('ej-title').value.trim() || j.title;
-  j.dept = document.getElementById('ej-dept').value;
-  j.type = document.getElementById('ej-type').value;
-  j.location = document.getElementById('ej-location').value.trim();
-  j.salary = document.getElementById('ej-salary').value.trim();
-  j.priority = document.getElementById('ej-priority').value;
-  j.status = document.getElementById('ej-status').value;
-  j.description = document.getElementById('ej-desc').value;
-  const skillsRaw = document.getElementById('ej-skills').value;
-  j.skills = skillsRaw ? skillsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  applyJobFormToObject(j);
   save(); closeModal(); renderJobs(); openJobDetail(id);
-  showToast('Job updated!');
+  showToast('Job updated! ✅');
+}
+
+function applyJobFormToObject(j) {
+  j.title         = document.getElementById('jf-title')?.value.trim() || j.title;
+  j.dept          = document.getElementById('jf-dept')?.value || j.dept;
+  j.type          = document.getElementById('jf-type')?.value || j.type;
+  j.location      = document.getElementById('jf-location')?.value.trim() || j.location;
+  j.priority      = document.getElementById('jf-priority')?.value || j.priority;
+  j.status        = document.getElementById('jf-status')?.value || j.status;
+  j.description   = document.getElementById('jf-desc')?.value || '';
+  j.internalNotes = document.getElementById('jf-internalnotes')?.value || '';
+  j.hiringManager = document.getElementById('jf-hiringmanager')?.value.trim() || '';
+  j.recruiter     = document.getElementById('jf-recruiter')?.value.trim() || '';
+  j.requisitionDate  = document.getElementById('jf-reqdate')?.value || '';
+  j.targetStartDate  = document.getElementById('jf-startdate')?.value || '';
+  j.headcount     = parseInt(document.getElementById('jf-headcount')?.value)||1;
+  j.costCentre    = document.getElementById('jf-costcentre')?.value.trim() || '';
+  j.reasonForHire = document.getElementById('jf-reasonforhire')?.value || '';
+  const salMin = document.getElementById('jf-salmin')?.value;
+  const salMax = document.getElementById('jf-salmax')?.value;
+  j.salMin = salMin; j.salMax = salMax;
+  if(salMin && salMax) j.salary = `RM${Number(salMin).toLocaleString()}–RM${Number(salMax).toLocaleString()}`;
+  else if(salMin) j.salary = `From RM${Number(salMin).toLocaleString()}`;
+  const skillsRaw = document.getElementById('jf-skills')?.value || '';
+  j.skills = skillsRaw ? skillsRaw.split(',').map(s=>s.trim()).filter(Boolean) : j.skills||[];
+  j.jobStages = Array.from(document.querySelectorAll('input[name="jf-stage"]:checked')).map(el=>el.value);
+  j.assessments = Array.from(document.querySelectorAll('input[name="jf-assessment"]:checked')).map(el=>el.value);
 }
 
 function closeDetail() { document.getElementById('detail-panel').classList.remove('open'); }
@@ -3878,61 +4365,8 @@ function openModal(type, data={}) {
 
   if(type==='add') {
     title.textContent = 'Post New Job';
-    const customStages = getCustomStages().filter(s=>s.enabled&&!['Applied','Hired','Rejected'].includes(s.name));
-    body.innerHTML = `
-      <div class="form-row">
-        <div class="form-group"><label>Job Title</label><input type="text" id="nj-title" placeholder="e.g. Senior Engineer"></div>
-        <div class="form-group"><label>Department</label>
-          <select id="nj-dept">${getDeptOptions('')}</select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Employment Type</label>
-          <select id="nj-type"><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Internship</option></select>
-        </div>
-        <div class="form-group"><label>Location</label><input type="text" id="nj-location" placeholder="City or Remote"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Salary Min</label><input type="number" id="nj-salmin" placeholder="80000"></div>
-        <div class="form-group"><label>Salary Max</label><input type="number" id="nj-salmax" placeholder="120000"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Priority</label>
-          <select id="nj-priority"><option>High</option><option selected>Medium</option><option>Low</option></select>
-        </div>
-        <div class="form-group"><label>Headcount</label>
-          <input type="number" id="nj-headcount" placeholder="1" min="1" value="1">
-        </div>
-      </div>
-      <div class="form-group"><label>Job Description</label><textarea id="nj-desc" placeholder="Responsibilities, requirements..."></textarea></div>
-      <div class="form-group"><label>Required Skills (comma separated)</label><input type="text" id="nj-skills" placeholder="React, TypeScript, Node.js"></div>
-
-      <!-- HIRING STAGES FOR THIS JOB -->
-      <div style="background:var(--bg3);border-radius:10px;padding:14px;margin-top:4px;">
-        <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Hiring Stages for this Job</div>
-        <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Toggle which stages apply — you can customise further after creating the job.</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;" id="nj-stages">
-          ${getCustomStages().filter(s=>s.enabled).map(s=>`
-            <label style="display:flex;align-items:center;gap:6px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;">
-              <input type="checkbox" name="nj-stage" value="${s.name}" ${['Applied','Hired','Rejected'].includes(s.name)?'checked disabled':'checked'} style="accent-color:${s.color}">
-              <span style="font-size:12px;font-weight:600;color:${s.color}">${s.name}</span>
-            </label>`).join('')}
-        </div>
-      </div>
-
-      <!-- ASSESSMENTS -->
-      <div style="background:var(--bg3);border-radius:10px;padding:14px;margin-top:8px;">
-        <div style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Assessments / Tests</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-          ${['Technical Test','Take-home Assignment','Portfolio Review','Personality Assessment','Background Check','Reference Check'].map(a=>`
-            <label style="display:flex;align-items:center;gap:6px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;">
-              <input type="checkbox" name="nj-assessment" value="${a}">
-              <span style="font-size:12px;color:var(--text2)">${a}</span>
-            </label>`).join('')}
-        </div>
-        <div class="form-group"><label>Custom Assessment (optional)</label><input type="text" id="nj-custom-assess" placeholder="e.g. 30-min coding challenge"></div>
-      </div>`;
-    footer.innerHTML = `<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveJob()">Post Job</button>`;
+    body.innerHTML = buildJobFormHTML(null);
+    footer.innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveJob()">Post Job</button>';
   } else if(type==='addCandidate') {
     title.textContent = 'Add Candidate';
     const apiKey = localStorage.getItem('tf_apikey') || '';
@@ -4021,37 +4455,22 @@ function openModal(type, data={}) {
 }
 
 function saveJob() {
-  const title = document.getElementById('nj-title')?.value.trim() || 'New Job Position';
-  const dept = document.getElementById('nj-dept')?.value || getDepts()[0];
-  const type = document.getElementById('nj-type')?.value || 'Full-time';
-  const location = document.getElementById('nj-location')?.value.trim() || 'Remote';
-  const salMin = document.getElementById('nj-salmin')?.value;
-  const salMax = document.getElementById('nj-salmax')?.value;
-  const priority = document.getElementById('nj-priority')?.value || 'Medium';
-  const headcount = parseInt(document.getElementById('nj-headcount')?.value)||1;
-  const desc = document.getElementById('nj-desc')?.value||'';
-  const skillsRaw = document.getElementById('nj-skills')?.value||'';
-  // Collect selected stages
-  const jobStages = Array.from(document.querySelectorAll('input[name="nj-stage"]:checked')).map(el=>el.value);
-  // Collect assessments
-  const assessments = Array.from(document.querySelectorAll('input[name="nj-assessment"]:checked')).map(el=>el.value);
-  const customAssess = document.getElementById('nj-custom-assess')?.value.trim();
-  if(customAssess) assessments.push(customAssess);
-
+  const title = document.getElementById('jf-title')?.value.trim();
+  if(!title) { showToast('Please enter a job title'); return; }
   const colors = ['#4f8ef7','#a78bfa','#34d399','#fbbf24','#f472b6','#fb7185','#06b6d4','#84cc16'];
   const icons  = {'Engineering':'⚙️','Design':'🎨','Product':'📊','Marketing':'📈','Sales':'💰','Operations':'🔧','HR':'👥','Finance':'💵','Legal':'⚖️'};
   const newId = Math.max(0, ...jobs.map(j=>j.id)) + 1;
-  jobs.push({
-    id: newId, title, dept, type, location, status:'Active', applicants:0, headcount,
-    salary: salMin&&salMax ? `RM${Number(salMin).toLocaleString()}–RM${Number(salMax).toLocaleString()}` : 'TBD',
-    posted: new Date().toISOString().split('T')[0],
-    color: colors[newId%colors.length],
-    icon: icons[dept]||'💼',
-    skills: skillsRaw?skillsRaw.split(',').map(s=>s.trim()).filter(Boolean):[],
-    priority, description:desc, jobStages, assessments
-  });
+  const dept = document.getElementById('jf-dept')?.value || getDepts()[0];
+  const newJob = {
+    id: newId, title, dept, type:'Full-time', location:'', status:'Active',
+    applicants:0, salary:'TBD', posted: new Date().toISOString().split('T')[0],
+    color: colors[newId%colors.length], icon: icons[dept]||'💼',
+    skills:[], priority:'Medium', jobStages:[], assessments:[]
+  };
+  applyJobFormToObject(newJob);
+  jobs.push(newJob);
   save(); populateJobFilters(); closeModal(); renderJobs();
-  showToast('Job posted and saved! 🎉');
+  showToast('Job posted! 🎉');
 }
 
 function quickMoveStage(id, stage, jobId) {
@@ -5532,6 +5951,7 @@ loadProjectsFromStorage();
 initCustomStages();
 renderDashboard();
 applySavedSettings();
+initSidebarState();
 </script>
 
 <!-- FIREBASE -->
