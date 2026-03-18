@@ -579,8 +579,8 @@
       <div class="filters-bar">
         <select class="filter-select" onchange="filterJobs(this.value)">
           <option value="">All Departments</option>
-          <option>Digital</option><option>Technology</option><option>Group</option>
-          <option>Orchid</option><option>Fusion</option><option>Finance</option>
+          <option>Engineering</option><option>Design</option><option>Product</option>
+          <option>Marketing</option><option>Sales</option><option>Operations</option>
         </select>
         <select class="filter-select" onchange="filterJobStatus(this.value)">
           <option value="">All Status</option>
@@ -823,26 +823,18 @@
     <!-- SETTINGS PAGE -->
     <div class="page" id="page-settings">
       <div style="display:grid;grid-template-columns:200px 1fr;gap:0;min-height:calc(100vh - 56px - 48px);">
-
         <!-- Settings sidebar -->
-        <div style="border-right:1px solid var(--border);padding:16px 8px;">
-          ${[
-            {id:'s-company',    icon:'🏢', label:'Company Profile'},
-            {id:'s-team',       icon:'👥', label:'Team Members'},
-            {id:'s-pipeline',   icon:'🔀', label:'Hiring Pipeline'},
-            {id:'s-rounds',     icon:'📋', label:'Interview Rounds'},
-            {id:'s-templates',  icon:'✉️', label:'Email Templates'},
-            {id:'s-apikey',     icon:'🔑', label:'AI & Integrations'},
-            {id:'s-notifs',     icon:'🔔', label:'Notifications'},
-            {id:'s-appearance', icon:'🎨', label:'Appearance'},
-            {id:'s-danger',     icon:'⚠️', label:'Danger Zone'},
-          ].map(s=>`
-            <div onclick="switchSettingsTab('${s.id}')" id="stab-${s.id}"
-              class="stab nav-item" style="font-size:13px;">
-              <span class="icon">${s.icon}</span>${s.label}
-            </div>`).join('')}
+        <div style="border-right:1px solid var(--border);padding:16px 8px;" id="settings-sidebar">
+          <div onclick="switchSettingsTab('s-company')" id="stab-s-company" class="nav-item active"><span class="icon">🏢</span>Company Profile</div>
+          <div onclick="switchSettingsTab('s-team')" id="stab-s-team" class="nav-item"><span class="icon">👥</span>Team Members</div>
+          <div onclick="switchSettingsTab('s-pipeline')" id="stab-s-pipeline" class="nav-item"><span class="icon">🔀</span>Hiring Pipeline</div>
+          <div onclick="switchSettingsTab('s-rounds')" id="stab-s-rounds" class="nav-item"><span class="icon">📋</span>Interview Rounds</div>
+          <div onclick="switchSettingsTab('s-templates')" id="stab-s-templates" class="nav-item"><span class="icon">✉️</span>Email Templates</div>
+          <div onclick="switchSettingsTab('s-apikey')" id="stab-s-apikey" class="nav-item"><span class="icon">🔑</span>AI & Integrations</div>
+          <div onclick="switchSettingsTab('s-notifs')" id="stab-s-notifs" class="nav-item"><span class="icon">🔔</span>Notifications</div>
+          <div onclick="switchSettingsTab('s-appearance')" id="stab-s-appearance" class="nav-item"><span class="icon">🎨</span>Appearance</div>
+          <div onclick="switchSettingsTab('s-danger')" id="stab-s-danger" class="nav-item"><span class="icon">⚠️</span>Danger Zone</div>
         </div>
-
         <!-- Settings content -->
         <div style="padding:24px;overflow-y:auto;max-width:680px;" id="settings-content"></div>
       </div>
@@ -1428,7 +1420,7 @@ function renderSettings() {
 }
 
 function switchSettingsTab(tabId) {
-  document.querySelectorAll('.stab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('#settings-sidebar .nav-item').forEach(t=>t.classList.remove('active'));
   const tab = document.getElementById('stab-'+tabId);
   if(tab) tab.classList.add('active');
 
@@ -1838,8 +1830,8 @@ function openAddTeamMember() {
       <div class="form-group"><label>Role / Title</label><input type="text" id="tm-role" placeholder="e.g. HR Manager"></div>
     </div>
     <div class="form-group"><label>Department</label>
-      <select id="tm-dept" <option>Digital</option><option>Technology</option><option>Group</option>
-          <option>Orchid</option><option>Fusion</option><option>Finance</option></div>
+      <select id="tm-dept"><option>HR</option><option>Engineering</option><option>Design</option><option>Product</option><option>Management</option><option>Operations</option></select>
+    </div>
     <div class="form-group" style="display:flex;align-items:center;justify-content:space-between;">
       <div><div style="font-size:13px;font-weight:600;">Can conduct interviews</div><div style="font-size:12px;color:var(--text3);">Name will appear in interviewer quick-select</div></div>
       <label class="toggle-switch"><input type="checkbox" id="tm-canInterview" checked><div class="toggle-track"></div></label>
