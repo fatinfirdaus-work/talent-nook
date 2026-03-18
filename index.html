@@ -237,11 +237,15 @@
   .offer-field-val { font-size: 13px; font-weight: 700; font-family: 'JetBrains Mono'; }
 
   /* ── MISC ── */
-  .page { display: none; }
+  .page { display: none; overflow: hidden; }
   .page.active { display: block; }
-  #page-candidates { display: flex; flex-direction: column; overflow: hidden; }
-  #page-candidates .panel { overflow: hidden; flex: 1; }
-  #page-candidates .table-wrap { height: 100%; }
+  /* Pages that need flex layout — ONLY when active */
+  #page-candidates.active { display: flex; flex-direction: column; }
+  #page-candidates.active .panel { overflow: hidden; flex: 1; }
+  #page-candidates.active .table-wrap { height: 100%; overflow-y: auto; }
+  #page-candprofile.active { display: block; }
+  #page-jobdetail.active { display: block; }
+  #page-projectdetail.active { display: block; }
   .empty-state { text-align: center; padding: 44px 20px; }
   .empty-icon { font-size: 36px; margin-bottom: 12px; opacity: 0.35; }
   .empty-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
@@ -484,12 +488,6 @@
   thead th[onclick]:hover { background:var(--bg4); color:var(--text); }
   thead th[onclick]:hover .th-sort { opacity:1; }
   .th-sort { opacity:0.4; transition:opacity 0.15s; font-size:10px; margin-left:4px; }
-
-  /* CANDIDATE PAGE LAYOUT */
-  #page-candidates { display:flex; flex-direction:column; overflow:hidden; }
-  #page-candidates .panel { overflow:hidden; flex:1; }
-  #page-candidates .table-wrap { height:100%; }
-
 
   .job-pipeline-bar { display:flex; gap:2px; height:6px; border-radius:3px; overflow:hidden; margin-top:6px; }
   .job-pipeline-seg { flex:1; min-width:4px; border-radius:2px; }
