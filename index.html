@@ -157,6 +157,7 @@
   .badge-red    { background: var(--red-dim);    color: var(--red); }
   .badge-blue   { background: var(--accent-dim); color: var(--accent); }
   .badge-purple { background: var(--purple-dim); color: var(--purple); }
+  .badge-cyan { background: #06b6d418; color: #06b6d4; }
   .badge-pink   { background: var(--pink-dim);   color: var(--pink); }
   .badge-gray   { background: var(--bg4);        color: var(--text2); }
 
@@ -935,7 +936,7 @@
           <div class="stat-change" id="dash-sub-cands">total candidates</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">In Interview</div>
+          <div class="stat-label">In Pipeline</div>
           <div class="stat-val" style="color:var(--amber)">–</div>
           <div class="stat-change" id="dash-sub-interview">in pipeline</div>
         </div>
@@ -1457,15 +1458,15 @@ let offers = stored.offers || [];
 
 let activities = stored.activities || [];
 
-const stages = ['Applied','Screening','Interview','Offer','Hired','Rejected'];
+const stages = ['Applied','Screening','Interview','Offer','Pending Join','Hired','Rejected'];
 const stageColors = {
   'Applied': 'var(--text2)', 'Screening': 'var(--accent)',
   'Interview': 'var(--amber)', 'Offer': 'var(--purple)',
-  'Hired': 'var(--green)', 'Rejected': 'var(--red)'
+  'Pending Join': '#06b6d4', 'Hired': 'var(--green)', 'Rejected': 'var(--red)'
 };
 const stageBadge = {
   'Applied':'badge-gray','Screening':'badge-blue','Interview':'badge-amber',
-  'Offer':'badge-purple','Hired':'badge-green','Rejected':'badge-red'
+  'Offer':'badge-purple','Pending Join':'badge-cyan','Hired':'badge-green','Rejected':'badge-red'
 };
 
 // ===================== RENDER HELPERS =====================
@@ -1596,9 +1597,11 @@ function renderDashboard() {
   });
   const inInterview  = stageCounts['Interview'] || 0;
   const inScreening  = stageCounts['Screening'] || 0;
+  const pendingJoin  = stageCounts['Pending Join'] || 0;
   const hiredCount   = stageCounts['Hired'] || 0;
   const rejectedCount = stageCounts['Rejected'] || 0;
   const inOfferCount = stageCounts['Offer'] || 0;
+  const inPipelineTotal = (stageCounts['Applied']||0) + inScreening + inInterview + inOfferCount + pendingJoin;
 
   // This month hires
   const thisMonth = new Date().toISOString().slice(0,7);
@@ -1610,7 +1613,7 @@ function renderDashboard() {
 
   // Animate stat card values
   const statCards = document.querySelectorAll('#page-dashboard .stat-val');
-  const statData  = [activeJobs, totalCands, inInterview, hiredThisMonth];
+  const statData  = [activeJobs, totalCands, inPipelineTotal, hiredThisMonth];
   statCards.forEach((el, i) => {
     if(statData[i]!==undefined) setTimeout(()=>animateCount(el, String(statData[i])), i*60);
   });
@@ -1629,7 +1632,11 @@ function renderDashboard() {
   }
   const subInterview = document.getElementById('dash-sub-interview');
   if(subInterview) {
-    subInterview.textContent = inScreening > 0 ? `${inScreening} in screening` : `${inOfferCount} in offer`;
+    const parts = [];
+    if(inInterview > 0) parts.push(`${inInterview} interviewing`);
+    if(pendingJoin > 0) parts.push(`${pendingJoin} pending join`);
+    if(inScreening > 0 && parts.length === 0) parts.push(`${inScreening} in screening`);
+    subInterview.textContent = parts.length ? parts.join(' · ') : 'across all stages';
     subInterview.className = 'stat-change';
   }
   // 4th card (hires this month) — update both value and sub-label
@@ -2373,6 +2380,7 @@ function renderOffers() {
         </div>
         <span class="badge ${o.status==='Accepted'?'badge-green':o.status==='Rejected'?'badge-red':'badge-amber'}">${o.status}</span>
       </div>
+      ${c ? `<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Candidate is now: <span class="badge ${stageBadge[c.stage]||'badge-gray'}" style="font-size:10px;">${c.stage}</span></div>` : ''}
       <div class="offer-grid">
         ${displayFields.map(f => `
           <div class="offer-field">
@@ -2397,12 +2405,15 @@ function updateOfferStatus(idx, status) {
   offers[idx].status = status;
   const c = getCand(offers[idx].candidateId);
   if(c && status==='Accepted') {
-    c.stage = 'Hired';
-    addToTimeline(c, 'Offer Accepted 🎉', 'var(--green)');
-    activities.unshift({ text:`<strong>${c.name}</strong> accepted the offer! 🎉`, color:'var(--green)', ts:Date.now() });
+    c.stage = 'Pending Join';
+    if(c.jobApplications?.length) c.jobApplications[0].stage = 'Pending Join';
+    addToTimeline(c, 'Offer Accepted — Pending Join 🎉', '#06b6d4');
+    activities.unshift({ text:`<strong>${c.name}</strong> accepted the offer — awaiting start date! 🎉`, color:'#06b6d4', ts:Date.now() });
   }
-  save(); renderOffers();
+  save();
   showToast(`Offer marked as ${status}!`);
+  reactiveUpdate(offers[idx]?.candidateId);
+  renderOffers();
 }
 
 function openEditOfferModal(idx) {
@@ -2433,6 +2444,7 @@ function renderAnalytics() {
 
   const total      = candidates.length;
   const hired      = stageCts['Hired'] || 0;
+  const pendingJoin = stageCts['Pending Join'] || 0;
   const offered    = stageCts['Offer'] || 0;
   const inInterview = stageCts['Interview'] || 0;
   const inScreening = stageCts['Screening'] || 0;
@@ -2597,7 +2609,6 @@ function renderAnalytics() {
 }
 
 function renderInbox() {
-  // Build dynamic notifications from real data
   const notifs = buildNotifications();
   const unreadCount = notifs.filter(n=>n.unread).length;
 
@@ -2612,30 +2623,72 @@ function renderInbox() {
   const el = document.getElementById('inbox-list');
   if(!el) return;
 
-  el.innerHTML = `
-    <div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-size:12px;color:var(--text3);">${unreadCount} unread · ${notifs.length} total</span>
-      <button class="btn btn-ghost btn-sm" onclick="markAllRead()">Mark all read</button>
-    </div>
-    ${notifs.length ? notifs.map((n,i)=>`
-    <div onclick="handleNotifClick(${i})" style="display:flex;align-items:flex-start;gap:14px;padding:14px 20px;
-      border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;
-      background:${n.unread?'var(--bg3)':'transparent'};"
-      onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='${n.unread?'var(--bg3)':'transparent'}'">
-      <div style="width:36px;height:36px;border-radius:10px;background:${n.iconBg};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${n.icon}</div>
+  const actionNeeded = notifs.filter(n => n.category === 'action');
+  const movements    = notifs.filter(n => n.category === 'movement');
+  const reminders    = notifs.filter(n => n.category === 'reminder');
+
+  const renderCard = (n, i) => `
+    <div onclick="handleNotifClick(${i})"
+      style="display:flex;align-items:flex-start;gap:10px;padding:11px 13px;
+        border-radius:8px;border:1px solid ${n.unread?'var(--border2)':'var(--border)'};
+        margin-bottom:8px;cursor:pointer;transition:all 0.15s;
+        background:${n.unread?'var(--bg2)':'var(--bg3)'};
+        ${n.unread?'border-left:3px solid var(--accent);':''}"
+      onmouseover="this.style.background='var(--bg4)'"
+      onmouseout="this.style.background='${n.unread?'var(--bg2)':'var(--bg3)'}'">
+      <div style="width:30px;height:30px;border-radius:8px;background:${n.iconBg};
+        display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">${n.icon}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;line-height:1.5;margin-bottom:3px;">${n.text}</div>
-        <div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono';">${n.time}</div>
-        ${n.action?`<button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:11px;" onclick="event.stopPropagation();handleNotifAction(${i})">${n.action}</button>`:''}
+        <div style="font-size:12.5px;line-height:1.5;margin-bottom:2px;">${n.text}</div>
+        <div style="font-size:10.5px;color:var(--text3);font-family:'JetBrains Mono';">${n.time}</div>
+        ${n.action ? `<button class="btn btn-ghost btn-sm"
+          style="margin-top:5px;font-size:11px;padding:3px 8px;"
+          onclick="event.stopPropagation();handleNotifAction(${i})">${n.action}</button>` : ''}
       </div>
-      ${n.unread?'<div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:4px;"></div>':''}
-    </div>`).join('')
-    : `<div style="text-align:center;padding:48px 20px;color:var(--text3);">
-        <div style="font-size:36px;margin-bottom:12px;">📬</div>
-        <div style="font-size:14px;font-weight:600;color:var(--text);">All caught up!</div>
-        <div style="font-size:13px;margin-top:4px;">No notifications yet</div>
-      </div>`}`;
+      ${n.unread ? '<div style="width:7px;height:7px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:4px;"></div>' : ''}
+    </div>`;
+
+  const renderCol = (title, icon, color, items, emptyMsg) => {
+    const unread = items.filter(n=>n.unread).length;
+    return `<div style="display:flex;flex-direction:column;min-width:0;">
+      <div style="display:flex;align-items:center;gap:8px;padding-bottom:12px;
+        border-bottom:2px solid ${color};margin-bottom:14px;">
+        <span style="font-size:17px;">${icon}</span>
+        <div>
+          <div style="font-size:13px;font-weight:700;">${title}</div>
+          <div style="font-size:11px;color:var(--text3);">${items.length} item${items.length!==1?'s':''}
+            ${unread ? `<span style="color:${color};font-weight:600;"> · ${unread} unread</span>` : ''}
+          </div>
+        </div>
+      </div>
+      ${items.length
+        ? items.map(n => renderCard(n, notifs.indexOf(n))).join('')
+        : `<div style="text-align:center;padding:20px 12px;color:var(--text3);
+            border:1px dashed var(--border);border-radius:8px;font-size:12px;">
+            <div style="font-size:22px;margin-bottom:6px;">✓</div>${emptyMsg}
+          </div>`}
+    </div>`;
+  };
+
+  el.innerHTML = `
+    <div style="padding:12px 20px;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;background:var(--bg2);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:14px;font-weight:700;">Inbox</span>
+        ${unreadCount ? `<span style="background:var(--red);color:#fff;border-radius:10px;
+          padding:2px 8px;font-size:11px;font-weight:700;">${unreadCount} unread</span>` : ''}
+        <span style="font-size:12px;color:var(--text3);">${notifs.length} total</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="markAllRead()">✓ Mark all read</button>
+    </div>
+    <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;align-items:start;">
+      ${renderCol('Action Needed','🔴','var(--red)', actionNeeded,'Nothing needs your attention')}
+      ${renderCol('Candidate Activity','🔵','var(--accent)', movements,'No recent activity')}
+      ${renderCol('Reminders','🟡','var(--amber)', reminders,'No reminders')}
+    </div>`;
 }
+
+
 
 // Build real notifications from actual data
 function buildNotifications() {
@@ -2652,7 +2705,8 @@ function buildNotifications() {
       time:'Action needed', unread:true,
       type:'cand', candId:c.id,
       action:'Add Feedback',
-      actionType:'feedback'
+      actionType:'feedback',
+      category:'action'
     });
   });
 
@@ -2666,7 +2720,8 @@ function buildNotifications() {
       time:o.sentDate||'Recently', unread:true,
       type:'cand', candId:c.id,
       action:'View Offer',
-      actionType:'offer'
+      actionType:'offer',
+      category:'action'
     });
   });
 
@@ -2679,7 +2734,8 @@ function buildNotifications() {
         time:iv.date===today?'Today!':iv.date, unread:iv.date===today,
         type:'cand', candId:c.id,
         action:'View Profile',
-        actionType:'profile'
+        actionType:'profile',
+        category:'reminder'
       });
     });
   });
@@ -2694,7 +2750,8 @@ function buildNotifications() {
       time:c.applied, unread:true,
       type:'cand', candId:c.id,
       action:'Review',
-      actionType:'profile'
+      actionType:'profile',
+      category:'action'
     });
   });
 
@@ -2707,7 +2764,8 @@ function buildNotifications() {
       time:'Recently', unread:false,
       type:'cand', candId:c.id,
       action:'View Profile',
-      actionType:'profile'
+      actionType:'profile',
+      category:'movement'
     });
   });
 
@@ -2719,7 +2777,8 @@ function buildNotifications() {
       time:'Heads up', unread:false,
       type:'job', jobId:j.id,
       action:'View Job',
-      actionType:'job'
+      actionType:'job',
+      category:'reminder'
     });
   });
 
@@ -2728,7 +2787,51 @@ function buildNotifications() {
     notifs.push({
       icon:'🔔', iconBg:'var(--bg4)',
       text:a.text, time:a.time, unread:false,
-      type:'activity'
+      type:'activity',
+      category:'movement'
+    });
+  });
+
+  // Recently rejected candidates -> movement
+  candidates.filter(c=>c.stage==='Rejected'&&c.rejectedAt).slice(0,3).forEach(c=>{
+    const job = getJob(c.jobId);
+    const daysAgo = Math.round((Date.now()-new Date(c.rejectedAt))/(1000*60*60*24));
+    if(daysAgo <= 14) notifs.push({
+      icon:'🚫', iconBg:'var(--red-dim)',
+      text:`<strong>${c.name}</strong> rejected — ${c.rejectionReasonLabel||'No reason'} · ${job?job.title:''}`,
+      time: daysAgo===0?'Today':daysAgo===1?'Yesterday':`${daysAgo}d ago`,
+      unread:false, type:'cand', candId:c.id,
+      action:'View', actionType:'profile',
+      category:'movement'
+    });
+  });
+
+  // Pending Join candidates - reminder to confirm start date / onboard
+  candidates.filter(c=>c.stage==='Pending Join').forEach(c=>{
+    const job = getJob(c.jobId);
+    const candOffer = offers.find(o=>o.candidateId===c.id&&o.status==='Accepted');
+    const startDate = candOffer?.startDate || '';
+    const daysUntil = startDate ? Math.round((new Date(startDate)-new Date())/86400000) : null;
+    notifs.push({
+      icon:'⏳', iconBg:'#06b6d418',
+      text:`<strong>${c.name}</strong> accepted offer for <strong>${job?job.title:''}</strong>${startDate?' — starts '+startDate:''}${daysUntil!==null?' ('+( daysUntil===0?'today':daysUntil>0?daysUntil+'d away':Math.abs(daysUntil)+'d overdue')+')':''}`,
+      time: daysUntil===0?'Starting today!':daysUntil!==null&&daysUntil<0?'Start date passed':'Pending join',
+      unread: daysUntil!==null&&daysUntil<=3,
+      type:'cand', candId:c.id,
+      action:'View Profile', actionType:'profile',
+      category:'action'
+    });
+  });
+  candidates.filter(c=>c.stage==='Hired').slice(0,2).forEach(c=>{
+    const job = getJob(c.jobId);
+    const candOffer = offers.find(o=>o.candidateId===c.id&&o.status==='Accepted');
+    if(candOffer) notifs.push({
+      icon:'🎉', iconBg:'var(--green-dim)',
+      text:`<strong>${c.name}</strong> accepted offer for <strong>${job?job.title:''}</strong>${candOffer.startDate?' — starts '+candOffer.startDate:''}`,
+      time:'Onboarding needed', unread:true,
+      type:'cand', candId:c.id,
+      action:'View Profile', actionType:'profile',
+      category:'action'
     });
   });
 
@@ -4307,8 +4410,9 @@ function renderCandProfileContent(id, fromJobId=null) {
     '<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteCandidate(' + c.id + ')">🗑</button>' +
     '</div></div>' +
 
-    // ── MAIN LAYOUT: left 55% | right 45% ──
-    '<div style="display:grid;grid-template-columns:1fr 420px;flex:1;overflow:hidden;min-height:0;">' +
+    // ── MAIN LAYOUT: resizable left | right panels ──
+    '<div id="cp-layout" style="display:grid;grid-template-columns:1fr 420px;flex:1;overflow:hidden;min-height:0;position:relative;">' +
+    '<style>#cp-divider{position:absolute;top:0;bottom:0;width:6px;cursor:col-resize;z-index:10;background:transparent;transition:background 0.15s;}#cp-divider:hover,#cp-divider.dragging{background:var(--accent)40;}</style>' +
 
     // ── LEFT: candidate info + resume tabs ──
     '<div style="overflow-y:auto;border-right:1px solid var(--border);display:flex;flex-direction:column;">' +
@@ -4387,6 +4491,51 @@ function renderCandProfileContent(id, fromJobId=null) {
   if(c.hasResume) {
     requestAnimationFrame(()=>{ setTimeout(()=>loadInlinePdf(id), 100); });
   }
+
+  // Add resizable divider between left and right panels
+  requestAnimationFrame(() => {
+    const layout = document.getElementById('cp-layout');
+    if(!layout) return;
+    const divider = document.createElement('div');
+    divider.id = 'cp-divider';
+    layout.appendChild(divider);
+
+    let dragging = false, startX = 0, startCols = '';
+    divider.addEventListener('mousedown', e => {
+      dragging = true;
+      startX = e.clientX;
+      startCols = getComputedStyle(layout).gridTemplateColumns;
+      divider.classList.add('dragging');
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'col-resize';
+    });
+    document.addEventListener('mousemove', e => {
+      if(!dragging) return;
+      const layoutRect = layout.getBoundingClientRect();
+      const totalW = layoutRect.width;
+      let leftW = e.clientX - layoutRect.left;
+      leftW = Math.max(320, Math.min(totalW - 280, leftW)); // min left 320, min right 280
+      const rightW = totalW - leftW;
+      layout.style.gridTemplateColumns = leftW + 'px ' + rightW + 'px';
+      // Position divider
+      divider.style.left = (leftW - 3) + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+      if(dragging) {
+        dragging = false;
+        divider.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      }
+    });
+
+    // Position divider at current split
+    const leftPanel = layout.firstElementChild;
+    if(leftPanel) {
+      const leftW = leftPanel.getBoundingClientRect().width;
+      divider.style.left = (leftW - 3) + 'px';
+    }
+  });
 }
 
 // Build all job applications for right panel
@@ -4718,15 +4867,8 @@ function confirmReject(id) {
 
   save();
   closeModal();
-
-  // If on candidate profile, refresh in place
-  if(document.getElementById('page-candprofile').classList.contains('active')) {
-    renderCandProfileContent(id);
-  } else {
-    renderCandidates();
-    renderPipeline();
-  }
   showToast(`${c.name} rejected — ${reasonLabel}`);
+  reactiveUpdate(id);
 }
 
 function addRejectionReason() {
@@ -5149,11 +5291,54 @@ function openEditCandidate(id) {
     <div class="form-group"><label>Applied For</label>
       <select id="ec-job">${jobs.map(j=>`<option value="${j.id}" ${c.jobId===j.id?'selected':''}>${j.title}</option>`).join('')}</select>
     </div>
-    <div class="form-group"><label>Skills (comma separated)</label><input type="text" id="ec-skills" value="${(c.skills||[]).join(', ')}"></div>`;
+    <div class="form-group"><label>Skills (comma separated)</label><input type="text" id="ec-skills" value="${(c.skills||[]).join(', ')}"></div>
+    <div class="form-group">
+      <label>Resume ${c.hasResume ? `<span style="color:var(--green);font-size:11px;">✓ ${escapeHtml(c.resumeFilename||'Uploaded')}</span>` : ''}</label>
+      <div id="ec-drop-zone" style="border:2px dashed var(--border2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg3);"
+        ondragover="this.style.borderColor='var(--accent)';this.style.background='var(--accent-dim)';event.preventDefault();"
+        ondragleave="this.style.borderColor='var(--border2)';this.style.background='var(--bg3)';"
+        ondrop="ecHandleResumeDrop(event,${id})"
+        onclick="document.getElementById('ec-resume-file').click()">
+        <div style="font-size:24px;margin-bottom:6px;">${c.hasResume ? '📄' : '⬆️'}</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:3px;" id="ec-dz-text">${c.hasResume ? 'Replace resume' : 'Upload resume'}</div>
+        <div style="font-size:11px;color:var(--text3);">PDF or DOCX · Max 10MB · Drop here or click</div>
+        <input type="file" id="ec-resume-file" accept=".pdf,.docx,application/pdf" style="display:none" onchange="ecHandleResumeFile(this.files[0],${id})">
+      </div>
+      <div id="ec-resume-status" style="display:none;margin-top:8px;"></div>
+    </div>`;
   document.getElementById('modal-footer').innerHTML = `
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn btn-primary" onclick="saveEditCandidate(${id})">Save Changes</button>`;
   overlay.classList.add('open');
+}
+
+function ecHandleResumeDrop(e, id) {
+  e.preventDefault();
+  const dz = document.getElementById('ec-drop-zone');
+  if(dz) { dz.style.borderColor='var(--border2)'; dz.style.background='var(--bg3)'; }
+  const file = e.dataTransfer?.files?.[0];
+  if(file) ecHandleResumeFile(file, id);
+}
+
+function ecHandleResumeFile(file, id) {
+  if(!file) return;
+  if(file.size > 10*1024*1024) { showToast('File too large — max 10MB'); return; }
+  const status = document.getElementById('ec-resume-status');
+  const dzText = document.getElementById('ec-dz-text');
+  if(dzText) dzText.textContent = '⏳ Processing...';
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const b64 = e.target.result.split(',')[1];
+    window._ecResumeB64 = b64;
+    window._ecResumeType = file.type || 'application/pdf';
+    window._ecResumeFilename = file.name;
+    if(dzText) dzText.textContent = '✅ ' + file.name;
+    if(status) {
+      status.style.display = 'block';
+      status.innerHTML = `<div style="color:var(--green);font-size:12px;">✓ ${escapeHtml(file.name)} ready to save</div>`;
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 function saveEditCandidate(id) {
@@ -5170,8 +5355,30 @@ function saveEditCandidate(id) {
   const skillsRaw = document.getElementById('ec-skills')?.value;
   c.skills = skillsRaw ? skillsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
   c.initials = c.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  save(); closeModal(); openCandProfile(id);
-  showToast('Candidate updated!');
+
+  // Handle resume upload if one was selected
+  if(window._ecResumeB64) {
+    try {
+      localStorage.setItem('tf_resume_'+id, JSON.stringify({
+        b64: window._ecResumeB64, type: window._ecResumeType, filename: window._ecResumeFilename
+      }));
+      c.hasResume = true;
+      c.resumeFilename = window._ecResumeFilename;
+      c.resumeType = window._ecResumeType;
+      // Upload to Firebase Storage if available
+      if(window.saveResumeToCloud && currentUser) {
+        window.saveResumeToCloud(id, window._ecResumeB64, window._ecResumeType, window._ecResumeFilename);
+      }
+    } catch(e) { console.warn('Resume save failed:', e); }
+    window._ecResumeB64 = null;
+    window._ecResumeType = null;
+    window._ecResumeFilename = null;
+  }
+
+  save();
+  closeModal();
+  openCandProfile(id);
+  showToast('Candidate updated! ✓');
 }
 
 function openCreateOffer(id) {
@@ -6125,6 +6332,33 @@ function openMoveStage(id, jobId) {
   document.getElementById('modal-overlay').classList.add('open');
 }
 
+// ── GLOBAL REACTIVE UPDATE ──
+// Call after ANY data change to update all currently visible UI
+function reactiveUpdate(candId) {
+  // Update nav badges
+  updateNavBadges();
+  // Update whichever page is currently active
+  const activePage = document.querySelector('.page.active')?.id;
+  if(activePage === 'page-candidates')  { renderCandidates(); renderCandJobSidebar(); renderCandStageTabs(); }
+  if(activePage === 'page-pipeline')    { renderPipeline(); }
+  if(activePage === 'page-dashboard')   { renderDashboard(); }
+  if(activePage === 'page-interviews')  { renderInterviews(); }
+  if(activePage === 'page-offers')      { renderOffers(); }
+  if(activePage === 'page-analytics')   { renderAnalytics(); }
+  if(activePage === 'page-reports')     { renderReports(); }
+  if(activePage === 'page-inbox')       { renderInbox(); }
+  if(activePage === 'page-jobdetail')   {
+    // Find which job detail is open
+    const jobId = history.state?.id;
+    if(jobId) renderJobDetailPage(jobId);
+  }
+  // If on candidate profile, refresh it
+  if(activePage === 'page-candprofile' && candId) {
+    renderCandProfileContent(candId);
+    refreshRightPanel(candId);
+  }
+}
+
 function confirmMoveStage(id) {
   const sel = document.getElementById('move-stage-select');
   const jobIdEl = document.getElementById('move-stage-jobid');
@@ -6136,9 +6370,8 @@ function confirmMoveStage(id) {
     save();
   }
   closeModal();
-  renderCandidates(); renderPipeline();
-  showToast('Candidate moved and saved!');
-  if(document.getElementById('page-candprofile').classList.contains('active')) refreshRightPanel(id);
+  showToast('Candidate moved! ✓');
+  reactiveUpdate(id);
 }
 
 function deleteJob(id) {
@@ -6316,18 +6549,38 @@ function buildStageContextPanel(c, allInterviews, allFeedback) {
           <div style="font-size:12.5px;color:var(--text2);margin-bottom:10px;">No offer created yet. Create an offer to send to the candidate.</div>`}
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-primary btn-sm" onclick="openCreateOffer(${id})">📄 ${hasOffer?'Edit Offer':'Create Offer'}</button>
-          ${latestOffer?.status==='Accepted'?`<button class="btn btn-ghost btn-sm" style="color:var(--green);" onclick="quickMoveStageAndRefresh(${id},'Hired')">✓ Mark Hired</button>`:''}
-          ${latestOffer?.status!=='Accepted'?`<button class="btn btn-ghost btn-sm" style="color:var(--green);" onclick="quickMoveStageAndRefresh(${id},'Hired')">✓ Mark Hired</button>`:''}
+          ${latestOffer?.status==='Accepted'?`<button class="btn btn-ghost btn-sm" style="color:var(--green);" onclick="quickMoveStageAndRefresh(${id},'Pending Join')">→ Move to Pending Join</button>`:''}
+          ${latestOffer?.status!=='Accepted'?`<button class="btn btn-ghost btn-sm" style="color:var(--green);" onclick="quickMoveStageAndRefresh(${id},'Pending Join')">→ Move to Pending Join</button>`:''}
           <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="rejectCandidate(${id})">✕ Reject Offer</button>
+        </div>
+      </div>`;
+  }
+  else if(stage === 'Pending Join') {
+    const acceptedOffer = candOffers.find(o => o.status === 'Accepted');
+    const startDate = acceptedOffer?.startDate || '';
+    const daysUntil = startDate ? Math.round((new Date(startDate) - new Date()) / 86400000) : null;
+    content = `
+      <div style="padding:16px;background:#06b6d418;border-bottom:3px solid #06b6d4;">
+        <div style="font-size:12px;font-weight:700;color:#06b6d4;margin-bottom:8px;">⏳ PENDING JOIN${startDate ? ' · Starts ' + startDate : ''}</div>
+        <div style="background:var(--bg2);border:1px solid #06b6d440;border-radius:8px;padding:10px 14px;margin-bottom:10px;">
+          <div style="font-size:12px;color:var(--text3);margin-bottom:4px;">Offer accepted — awaiting candidate's start date</div>
+          ${daysUntil !== null ? `<div style="font-size:13px;font-weight:700;color:#06b6d4;">${daysUntil > 0 ? daysUntil + ' days until start' : daysUntil === 0 ? '🎉 Starting today!' : Math.abs(daysUntil) + ' days since start date'}</div>` : '<div style="font-size:12px;color:var(--text3);">No start date set</div>'}
+          ${acceptedOffer?.salary ? `<div style="font-size:12px;color:var(--text2);margin-top:4px;">💰 ${escapeHtml(acceptedOffer.salary)}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" style="background:#06b6d4;border-color:#06b6d4;" onclick="quickMoveStageAndRefresh(${id},'Hired')">✓ Mark as Joined</button>
+          <button class="btn btn-ghost btn-sm" onclick="openScheduleInterview(${id})">📅 Schedule Onboarding</button>
+          <button class="btn btn-ghost btn-sm" onclick="openCreateOffer(${id})">📄 View Offer</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="rejectCandidate(${id})">✕ No-Show / Withdrew</button>
         </div>
       </div>`;
   }
   else if(stage === 'Hired') {
     content = `
       <div style="padding:16px;background:#34d39918;border-bottom:3px solid var(--green);">
-        <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:6px;">🎉 HIRED</div>
-        <div style="font-size:12.5px;color:var(--text2);">This candidate has been successfully hired. Onboarding can begin.</div>
-        ${candOffers.length ? `<div style="font-size:11.5px;color:var(--text3);margin-top:6px;">Offer was ${candOffers[candOffers.length-1].status?.toLowerCase()||'pending'}.</div>` : ''}
+        <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:6px;">🎉 HIRED & JOINED</div>
+        <div style="font-size:12.5px;color:var(--text2);">Candidate has joined the team. Onboarding complete.</div>
+        ${candOffers.length ? `<div style="font-size:11.5px;color:var(--text3);margin-top:6px;">Offer: ${candOffers[candOffers.length-1].status?.toLowerCase()||'pending'}.</div>` : ''}
       </div>`;
   }
   else if(stage === 'Rejected') {
@@ -6401,8 +6654,13 @@ function buildStageActions(c) {
   else if(stage === 'Offer') {
     primary = `<button class="btn btn-primary btn-sm" onclick="openCreateOffer(${id})">📄 Create / Edit Offer</button>`;
     secondary = `
-      <button class="btn btn-ghost btn-sm" style="color:var(--green);" onclick="quickMoveStageAndRefresh(${id},'Hired')">✓ Mark Hired</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--green);" onclick="quickMoveStageAndRefresh(${id},'Pending Join')">→ Move to Pending Join</button>
       <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="rejectCandidate(${id})">✕ Reject</button>`;
+  }
+  else if(stage === 'Pending Join') {
+    primary = `<button class="btn btn-primary btn-sm" style="background:#06b6d4;border-color:#06b6d4;" onclick="quickMoveStageAndRefresh(${id},'Hired')">✓ Mark as Joined</button>`;
+    secondary = `<button class="btn btn-ghost btn-sm" onclick="openCreateOffer(${id})">📄 View Offer</button>`;
+    move = '';
   }
   else if(stage === 'Hired') {
     primary = `<span style="font-size:13px;color:var(--green);font-weight:700;">🎉 Hired!</span>`;
@@ -6431,14 +6689,27 @@ function quickMoveStageAndRefresh(id, stage) {
   c.stage = stage;
   // Update jobApplications too
   if(c.jobApplications?.length) c.jobApplications[0].stage = stage;
+
+  // If moving to Pending Join, auto-mark pending offer as Accepted
+  if(stage === 'Pending Join') {
+    const pendingOffer = offers.find(o => o.candidateId === id && o.status === 'Pending');
+    if(pendingOffer) {
+      pendingOffer.status = 'Accepted';
+      activities.unshift({ text:`Offer accepted by <strong>${c.name}</strong> 🎉`, color:'var(--green)', ts:Date.now() });
+    }
+  }
+
+  // If marking as Hired from Pending Join, log it
+  if(stage === 'Hired' && prevStage === 'Pending Join') {
+    const job = getJob(c.jobId);
+    activities.unshift({ text:`<strong>${c.name}</strong> has joined${job?' as '+job.title:''}! 🎉`, color:'var(--green)', ts:Date.now() });
+  }
+
   addToTimeline(c, `Moved from ${prevStage} → ${stage}`, stageColors[stage]||'var(--accent)');
   activities.unshift({ text:`<strong>${c.name}</strong> moved to <strong>${stage}</strong>`, color:stageColors[stage]||'var(--accent)', ts:Date.now() });
   save();
   showToast(`Moved to ${stage} ✓`);
-  // Re-render the profile to update action buttons
-  renderCandProfileContent(id);
-  // Update right panel
-  refreshRightPanel(id);
+  reactiveUpdate(id);
 }
 
 
@@ -6938,6 +7209,7 @@ function renderReports() {
 
   // --- SUMMARY ---
   const hired = candidates.filter(c=>c.stage==='Hired').length;
+  const pendingJoinCount = candidates.filter(c=>c.stage==='Pending Join').length;
   const inPipe = candidates.filter(c=>!['Hired','Rejected'].includes(c.stage)).length;
   const rejected = candidates.filter(c=>c.stage==='Rejected').length;
   const activeJobs = jobs.filter(j=>j.status==='Active').length;
@@ -6947,6 +7219,7 @@ function renderReports() {
     ['Total Candidates', candidates.length],
     ['Active Jobs', activeJobs],
     ['Hired', hired],
+    ['Pending Join', pendingJoinCount],
     ['In Pipeline', inPipe],
     ['Rejected', rejected],
     ['Avg Match Score', avgScore + '/100'],
@@ -7239,12 +7512,13 @@ function showToast(msg) {
 
 // ===================== CUSTOM STAGES =====================
 const DEFAULT_STAGES = [
-  { name:'Applied',   color:'#8b91a8', enabled:true, locked:true  },
-  { name:'Screening', color:'#4f8ef7', enabled:true, locked:false },
-  { name:'Interview', color:'#fbbf24', enabled:true, locked:false },
-  { name:'Offer',     color:'#a78bfa', enabled:true, locked:false },
-  { name:'Hired',     color:'#34d399', enabled:true, locked:true  },
-  { name:'Rejected',  color:'#f87171', enabled:true, locked:true  },
+  { name:'Applied',      color:'#8b91a8', enabled:true, locked:true  },
+  { name:'Screening',    color:'#4f8ef7', enabled:true, locked:false },
+  { name:'Interview',    color:'#fbbf24', enabled:true, locked:false },
+  { name:'Offer',        color:'#a78bfa', enabled:true, locked:false },
+  { name:'Pending Join', color:'#06b6d4', enabled:true, locked:false },
+  { name:'Hired',        color:'#34d399', enabled:true, locked:true  },
+  { name:'Rejected',     color:'#f87171', enabled:true, locked:true  },
 ];
 const STAGE_COLOR_OPTIONS = [
   '#4f8ef7','#a78bfa','#34d399','#fbbf24','#f87171','#f472b6',
