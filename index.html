@@ -4110,6 +4110,19 @@ function refreshRightPanel(id) {
   const allInterviews = (c.interviews||[]).slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
   const allFeedback = (c.feedback||[]).slice().sort((a,b)=>new Date(b.createdAt||b.date||0)-new Date(a.createdAt||a.date||0));
 
+  // Refresh stage badge + action buttons at top of sidebar
+  const stageBadgeEl = document.querySelector('#cp-action-buttons')?.closest('div');
+  const stageTrackerWrap = document.getElementById('cp-stage-tracker-wrap');
+  if(stageTrackerWrap) stageTrackerWrap.innerHTML = buildStageTrackerHTML(c);
+  const actionBtns = document.getElementById('cp-action-buttons');
+  if(actionBtns) actionBtns.innerHTML = buildStageActions(c);
+  // Also refresh the stage badge text
+  const stageBadgeSpan = document.querySelector('[data-cp-stage-badge]');
+  if(stageBadgeSpan) {
+    stageBadgeSpan.textContent = c.stage;
+    stageBadgeSpan.className = 'badge ' + (stageBadge[c.stage]||'badge-gray');
+  }
+
   // Refresh offers section
   const offersSection = document.getElementById('cp-offers-section');
   if(offersSection) offersSection.innerHTML = buildOffersHTML(c);
@@ -4429,17 +4442,11 @@ function renderCandProfileContent(id, fromJobId=null) {
 
     // Candidate header card
     '<div style="padding:20px 24px;border-bottom:1px solid var(--border);flex-shrink:0;">' +
-    '<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:16px;">' +
-    '<div style="width:72px;height:72px;border-radius:50%;background:' + c.color + '33;color:' + c.color + ';display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;flex-shrink:0;">' + c.initials + '</div>' +
+    '<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:12px;">' +
+    '<div style="width:64px;height:64px;border-radius:50%;background:' + c.color + '33;color:' + c.color + ';display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;flex-shrink:0;">' + c.initials + '</div>' +
     '<div style="flex:1;">' +
-    '<div style="font-size:20px;font-weight:800;letter-spacing:-0.3px;margin-bottom:4px;">' + escapeHtml(c.name) + ' <span style="font-size:14px;font-weight:400;">' + stars + '</span></div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">' +
-    (c.source?'<span class="badge badge-amber">' + escapeHtml(c.source) + '</span>':'') +
-    '<span class="badge ' + (stageBadge[c.stage]||'badge-gray') + '">' + c.stage + '</span>' +
-    (c.rejectionReasonLabel?'<span class="badge badge-red" style="font-size:10px;">🚫 ' + escapeHtml(c.rejectionReasonLabel) + '</span>':'') +
-    (c.hasResume?'<span class="badge badge-gray">📄 Resume</span>':'') +
-    '</div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--text3);">' +
+    '<div style="font-size:19px;font-weight:800;letter-spacing:-0.3px;margin-bottom:6px;">' + escapeHtml(c.name) + ' <span style="font-size:14px;font-weight:400;">' + stars + '</span></div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--text3);">' +
     (c.phone?'<a href="tel:' + c.phone + '" style="color:var(--accent);">📞 ' + escapeHtml(c.phone) + '</a>':'') +
     (c.email?'<a href="mailto:' + c.email + '" style="color:var(--accent);">✉️ ' + escapeHtml(c.email) + '</a>':'') +
     (c.currentTitle?'<span>🏢 ' + escapeHtml(c.currentTitle) + '</span>':'') +
@@ -4447,10 +4454,11 @@ function renderCandProfileContent(id, fromJobId=null) {
     (c.location?'<span>📍 ' + escapeHtml(c.location) + '</span>':'') +
     (c.applied?'<span>📅 Applied ' + c.applied + '</span>':'') +
     '</div></div></div>' +
-    // Action buttons — stage-aware
-    '<div style="display:flex;gap:6px;flex-wrap:wrap;">' +
-    buildStageActions(c) +
-    '</div></div>' +
+    '<div style="display:flex;flex-wrap:wrap;gap:5px;">' +
+    (c.source?'<span class="badge badge-amber">' + escapeHtml(c.source) + '</span>':'') +
+    (c.hasResume?'<span class="badge badge-gray">📄 Resume</span>':'') +
+    '</div>' +
+    '</div>' + // end header card
 
     // Left tabs
     '<div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;">' +
@@ -4467,8 +4475,18 @@ function renderCandProfileContent(id, fromJobId=null) {
     '<div id="lt-history" class="cp-tab-content" style="padding:0;">' + historyTab + '</div>' +
     '</div>' + // end left panel
 
-    // ── RIGHT: job application + interviews + notes ──
+    // ── RIGHT: stage/actions + job application + interviews + notes ──
     '<div style="overflow-y:auto;background:var(--bg3);display:flex;flex-direction:column;gap:0;">' +
+
+    // ── STAGE & ACTIONS — top of sidebar ──
+    '<div style="background:var(--bg2);padding:14px 16px;border-bottom:1px solid var(--border);">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+    '<span class="badge ' + (stageBadge[c.stage]||'badge-gray') + '" style="font-size:12px;">' + c.stage + '</span>' +
+    (c.rejectionReasonLabel ? '<span class="badge badge-red" style="font-size:10px;">🚫 ' + escapeHtml(c.rejectionReasonLabel) + '</span>' : '') +
+    '</div>' +
+    '<div id="cp-stage-tracker-wrap" style="margin-bottom:12px;">' + buildStageTrackerHTML(c) + '</div>' +
+    '<div id="cp-action-buttons" style="display:flex;gap:6px;flex-wrap:wrap;">' + buildStageActions(c) + '</div>' +
+    '</div>' +
 
     // Job application section
     '<div style="background:var(--bg2);margin-top:8px;">' +
@@ -4583,11 +4601,9 @@ function buildJobApplicationsHTML(c) {
     html += '</div>';
 
     // Stage tracker for this specific job
-    html += '<div style="padding:8px 16px 14px;overflow-x:auto;">';
-    html += '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:8px;">Stage</div>';
-    html += '<div style="display:flex;align-items:center;">' + buildStageTrackerHTML(c, app.jobId) + '</div>';
-    html += '<div style="margin-top:10px;display:flex;gap:6px;">';
-    html += '<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openMoveStage(' + c.id + ',' + app.jobId + ')">↕ Move Stage</button>';
+    html += '<div style="padding:6px 16px 12px;overflow-x:auto;">';
+    html += '<div style="display:flex;align-items:center;gap:8px;">' + buildStageTrackerHTML(c, app.jobId) + '';
+    html += '<button class="btn btn-ghost btn-sm" style="font-size:11px;flex-shrink:0;" onclick="openMoveStage(' + c.id + ',' + app.jobId + ')">↕ Move</button>';
     html += '</div>';
     html += '</div>';
 
