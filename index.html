@@ -554,7 +554,7 @@
 .login-screen { position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column; }
 .login-screen.hidden { display:none !important; }
 /* App shell hidden until auth resolves */
-.app-shell { opacity:0; transition:opacity 0.3s; pointer-events:none; }
+.app-shell { opacity:0; transition:opacity 0.3s; pointer-events:none; width:100%; min-height:100vh; overflow:hidden; }
 .app-shell.ready { opacity:1; pointer-events:all; }
   .login-card { background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:48px 40px;text-align:center;width:100%;max-width:380px;box-shadow:0 24px 80px rgba(0,0,0,0.6); }
   .login-logo { width:52px;height:52px;background:linear-gradient(135deg,#4f8ef7,#a78bfa);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 16px; }
