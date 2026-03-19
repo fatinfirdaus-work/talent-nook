@@ -5998,10 +5998,10 @@ document.addEventListener('click', e => {
 // ===================== API KEY =====================
 function saveApiKey() {
   const val = document.getElementById('api-key-input')?.value.trim();
-  if(!val || !val.startsWith('sk-')) { showToast('Please enter a valid API key (starts with sk-)'); return; }
+  if(!val || !val.startsWith('sk-ant-')) { showToast('Invalid key — Anthropic keys start with sk-ant-'); return; }
   localStorage.setItem('tf_apikey', val);
   document.getElementById('apikey-section').style.display = 'none';
-  showToast('API key saved!');
+  showToast('API key saved! ✓');
 }
 function clearApiKey() {
   localStorage.removeItem('tf_apikey');
@@ -6052,6 +6052,10 @@ async function parseResume(b64, mimeType, filename) {
     setParseStatus('warning', '⚠️ No API key set — please enter your key above to enable AI parsing.');
     return;
   }
+  if(!apiKey.startsWith('sk-ant-')) {
+    setParseStatus('error', '❌ Invalid API key format — Anthropic keys start with <strong>sk-ant-</strong>. Please check your key in the field above.');
+    return;
+  }
 
   setParseStatus('loading', '🤖 AI is reading the resume...');
 
@@ -6085,7 +6089,7 @@ async function parseResume(b64, mimeType, filename) {
         'anthropic-dangerous-allow-browser': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1000,
         messages
       })
@@ -6118,7 +6122,11 @@ async function parseResume(b64, mimeType, filename) {
     setParseStatus('success', `✅ Resume parsed successfully! Form auto-filled from <strong>${filename}</strong>`);
   } catch(err) {
     console.error(err);
-    setParseStatus('error', `❌ Parse failed: ${err.message}. You can still fill the form manually.`);
+    let msg = err.message;
+    if(msg.includes('NetworkError') || msg.includes('Failed to fetch') || msg.includes('fetch')) {
+      msg = 'Network error — check your API key is valid, or try again. Make sure your key starts with sk-ant-';
+    }
+    setParseStatus('error', `❌ Parse failed: ${msg}. You can still fill the form manually.`);
   }
 }
 
@@ -6691,15 +6699,12 @@ async function loadInlinePdf(candId) {
   container.innerHTML = '<div style="text-align:center;color:#ccc;padding:40px;"><div style="font-size:32px;margin-bottom:10px;">⏳</div><div style="font-size:14px;">Loading resume...</div></div>';
 
   try {
-    if(window.pdfjsLib) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    } else {
-      throw new Error('PDF.js not loaded');
-    }
+    if(!window.pdfjsLib) throw new Error('PDF.js not loaded');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
     let pdfData = null;
 
-    // 1. Try local storage first (fastest, no CORS)
+    // 1. Try localStorage first (fastest)
     try {
       const stored = JSON.parse(localStorage.getItem('tf_resume_'+candId)||'null');
       if(stored?.b64) {
@@ -6707,35 +6712,47 @@ async function loadInlinePdf(candId) {
         pdfData = new Uint8Array(bin.length);
         for(let i=0;i<bin.length;i++) pdfData[i]=bin.charCodeAt(i);
       }
-    } catch(e) {}
+    } catch(e) { console.warn('localStorage resume read failed:', e); }
 
     // 2. Try Firebase Storage URL
-    if(!pdfData && window.getResumeData) {
+    if(!pdfData && currentUser && c.hasResume) {
       try {
-        const r = await getResumeData(candId);
+        const r = await window.getResumeData(candId);
         if(r?.url) {
           const resp = await fetch(r.url);
           if(resp.ok) {
             const buf = await resp.arrayBuffer();
             pdfData = new Uint8Array(buf);
-            // Cache locally for next time
+            // Cache locally
             try {
-              const b64 = btoa(String.fromCharCode(...pdfData.slice(0,1000000)));
+              const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
               localStorage.setItem('tf_resume_'+candId, JSON.stringify({b64, filename: c.resumeFilename}));
             } catch(e) {}
           }
         }
-      } catch(e) { console.warn('Cloud load failed:', e); }
+      } catch(e) { console.warn('Cloud resume load failed:', e); }
     }
 
     if(!pdfData) {
+      // Check if it's a DOCX (can't render inline)
+      const isDocx = (c.resumeFilename||'').endsWith('.docx') || (c.resumeType||'').includes('word');
       container.innerHTML =
-        '<div style="color:#ccc;padding:32px;text-align:center;">' +
-        '<div style="font-size:32px;margin-bottom:10px;">📄</div>' +
-        '<div style="margin-bottom:8px;font-size:14px;">' + (c.resumeFilename||'Resume') + '</div>' +
-        '<div style="font-size:12px;color:#aaa;margin-bottom:16px;">PDF preview not available. Click below to open.</div>' +
-        '<button class="btn btn-primary" onclick="viewResume('+candId+')">Open Resume in New Tab ↗</button>' +
+        '<div style="color:var(--text3);padding:32px;text-align:center;">' +
+        '<div style="font-size:32px;margin-bottom:10px;">' + (isDocx?'📝':'📄') + '</div>' +
+        '<div style="margin-bottom:8px;font-size:14px;font-weight:600;">' + escapeHtml(c.resumeFilename||'Resume') + '</div>' +
+        '<div style="font-size:12px;color:var(--text3);margin-bottom:16px;">' +
+          (isDocx ? 'DOCX files cannot be previewed inline.' : 'Preview not available — file may not be cached locally.') +
+        '</div>' +
+        '<button class="btn btn-primary btn-sm" onclick="viewResume('+candId+')">Open in New Tab ↗</button>&nbsp;' +
+        '<button class="btn btn-ghost btn-sm" onclick="downloadResume('+candId+')">⬇ Download</button>' +
         '</div>';
+      return;
+    }
+
+    // Only render PDF (not DOCX)
+    const isDocx = (c.resumeFilename||'').endsWith('.docx') || (c.resumeType||'').includes('word');
+    if(isDocx) {
+      container.innerHTML = '<div style="color:var(--text3);padding:32px;text-align:center;"><div style="font-size:32px;margin-bottom:10px;">📝</div><div style="font-size:14px;font-weight:600;margin-bottom:12px;">' + escapeHtml(c.resumeFilename||'Resume.docx') + '</div><button class="btn btn-primary btn-sm" onclick="viewResume('+candId+')">Open in New Tab ↗</button>&nbsp;<button class="btn btn-ghost btn-sm" onclick="downloadResume('+candId+')">⬇ Download</button></div>';
       return;
     }
 
@@ -6749,10 +6766,10 @@ async function loadInlinePdf(candId) {
   } catch(err) {
     console.error('PDF load error:', err);
     container.innerHTML =
-      '<div style="color:#ccc;padding:32px;text-align:center;">' +
+      '<div style="color:var(--text3);padding:32px;text-align:center;">' +
       '<div style="font-size:32px;margin-bottom:12px;">⚠️</div>' +
       '<div style="font-size:13px;margin-bottom:16px;">Could not render PDF: ' + err.message + '</div>' +
-      '<button class="btn btn-primary" onclick="viewResume('+candId+')">Open in New Tab ↗</button>' +
+      '<button class="btn btn-primary btn-sm" onclick="viewResume('+candId+')">Open in New Tab ↗</button>' +
       '</div>';
   }
 }
