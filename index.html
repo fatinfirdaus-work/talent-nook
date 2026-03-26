@@ -5329,7 +5329,9 @@ function buildDetailsTabHTML(c) {
     '</div>' +
     '<div style="margin-bottom:16px;"><div class="cp-field-label" style="margin-bottom:6px;">Skills</div><div class="skill-tags">' + skillsHTML + '</div></div>' +
     notesHTML;
+}
 
+function renderCandProfileContent(id, fromJobId=null) {
   const el = document.getElementById('candprofile-content');
   el.style.cssText = 'height:calc(100vh - 56px);display:flex;flex-direction:column;overflow:hidden;';
 
