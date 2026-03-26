@@ -5339,7 +5339,7 @@ function buildDetailsTabHTML(c) {
 
 function renderCandProfileContent(id, fromJobId=null) {
   const el = document.getElementById('candprofile-content');
-  el.style.cssText = 'height:calc(100vh - 56px);display:flex;flex-direction:column;overflow:hidden;';
+  el.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;';
 
   // Prev/Next navigation
   // Priority: fromJobId (came from job detail) > _candActiveJobId (came from candidates page) > all
