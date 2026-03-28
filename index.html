@@ -116,7 +116,7 @@
 
   /* Pages using page-inner — flex column so content fills height */
   #page-dashboard.active, #page-analytics.active, #page-reports.active,
-  #page-inbox.active, #page-tasks.active, #page-interviews.active, #page-offers.active {
+  #page-inbox.active, #page-tasks.active, #page-interviews.active, #page-offers.active, #page-onboarding.active {
     display: flex; flex-direction: column; height: 100%;
   }
   #page-tasks.active .page-inner {
@@ -353,6 +353,19 @@
   .cp-field { flex: 1; min-width: 130px; }
   .pipeline-stage { flex: 0 0 auto; min-width: 170px; }
 
+
+  /* EMAIL TEMPLATE MODAL */
+  .email-tpl-card {
+    background: var(--bg3); border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; cursor: pointer; transition: all 0.15s;
+  }
+  .email-tpl-card:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .email-tpl-card.selected { border-color: var(--accent); background: var(--accent-dim); }
+  .email-preview-box {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; font-size: 12.5px; line-height: 1.85; color: var(--text2);
+    white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow-y: auto;
+  }
 
   /* PIPELINE FUNNEL */
   .pipeline-stage-card { cursor:pointer; border-radius:12px; padding:12px 10px; text-align:center; border:2px solid transparent; transition:all 0.18s; flex:1; min-width:70px; position:relative; }
@@ -888,6 +901,10 @@
         <span class="icon">📄</span><span class="nav-text">Offers</span>
         <span class="nav-badge" id="badge-offers"></span>
       </div>
+      <div class="nav-item" data-label="Onboarding" onclick="showPage('onboarding', this)">
+        <span class="icon">🚀</span><span class="nav-text">Onboarding</span>
+        <span class="nav-badge" id="badge-onboarding" style="background:var(--purple)"></span>
+      </div>
     </div>
     <div class="nav-section">
       <div class="nav-label">Workspace</div>
@@ -1243,6 +1260,33 @@
     </div>
 
     </div>
+
+    <!-- ONBOARDING PAGE -->
+    <div class="page" id="page-onboarding">
+      <div class="page-inner" style="padding:0;">
+        <!-- Toolbar -->
+        <div style="display:flex;align-items:center;gap:10px;padding:16px 24px;border-bottom:1px solid var(--border);background:var(--bg2);flex-wrap:wrap;">
+          <div style="flex:1;">
+            <div style="font-size:17px;font-weight:800;margin-bottom:2px;">🚀 Onboarding</div>
+            <div style="font-size:12px;color:var(--text3);">Candidates in Pending Join — track tasks, docs, equipment and emails</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="onboarding-filter-status" onchange="renderOnboarding()" class="filter-select">
+              <option value="">All Statuses</option>
+              <option value="not_started">Not Started</option>
+              <option value="in_progress">In Progress</option>
+              <option value="overdue">Has Overdue</option>
+            </select>
+            <select id="onboarding-filter-job" onchange="renderOnboarding()" class="filter-select">
+              <option value="">All Jobs</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="showPage('settings',null);setTimeout(()=>switchSettingsTab('s-onboarding'),80)">⚙️ Configure Templates</button>
+          </div>
+        </div>
+        <!-- Content -->
+        <div id="onboarding-content" style="padding:20px 24px;overflow-y:auto;height:calc(100vh - 52px - 73px);"></div>
+      </div>
+    </div>
     <!-- ANALYTICS PAGE -->
     <div class="page" id="page-analytics">
       <div class="page-inner">
@@ -1440,6 +1484,7 @@
           <div onclick="switchSettingsTab('s-pipeline')" id="stab-s-pipeline" class="nav-item"><span class="icon">🔀</span>Hiring Pipeline</div>
           <div onclick="switchSettingsTab('s-rounds')" id="stab-s-rounds" class="nav-item"><span class="icon">📋</span>Interview Rounds</div>
           <div onclick="switchSettingsTab('s-templates')" id="stab-s-templates" class="nav-item"><span class="icon">✉️</span>Email Templates</div>
+          <div onclick="switchSettingsTab('s-onboarding')" id="stab-s-onboarding" class="nav-item"><span class="icon">🚀</span>Onboarding</div>
           <div onclick="switchSettingsTab('s-apikey')" id="stab-s-apikey" class="nav-item"><span class="icon">🔑</span>AI & Integrations</div>
           <div onclick="switchSettingsTab('s-notifs')" id="stab-s-notifs" class="nav-item"><span class="icon">🔔</span>Notifications</div>
           <div onclick="switchSettingsTab('s-appearance')" id="stab-s-appearance" class="nav-item"><span class="icon">🎨</span>Appearance</div>
@@ -1651,6 +1696,8 @@ function updateSidebarBadges() {
   set('badge-interviews', upcomingIVs);
   // Offers: pending offers
   set('badge-offers', offers.filter(o => o.status === 'Pending').length);
+  // Onboarding: candidates in Pending Join
+  set('badge-onboarding', candidates.filter(c => c.stage === 'Pending Join').length);
   // Inbox: unread activities (last 24h)
   const unread = activities.filter(a => a.ts && (Date.now() - a.ts) < 86400000).length;
   set('badge-inbox', Math.min(unread, 99));
@@ -3280,6 +3327,7 @@ function taskTableRow(t, overdue) {
         <div style="font-size:13px;font-weight:600;${t.status==='Done'?'text-decoration:line-through;color:var(--text3);':''}
           white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.title)}</div>
         ${t.description?`<div style="font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.description)}</div>`:''}
+        ${t._onboarding?`<span style="font-size:9px;background:var(--purple-dim);color:var(--purple);border-radius:3px;padding:1px 5px;font-weight:700;">🚀 ONBOARDING${t._obAssignTo?' · '+t._obAssignTo:''}</span>`:''}
         ${(t.attachments||[]).length?`<span style="font-size:10px;color:var(--accent);">📎 ${t.attachments.length}</span>`:''}
       </div>
     </div>
@@ -4507,6 +4555,96 @@ function switchSettingsTab(tabId) {
         </div>
       </div>`;
 
+  } else if(tabId==='s-onboarding') {
+    const ob = getOnboardingSettings();
+    el.innerHTML = `
+      <div style="font-size:18px;font-weight:800;margin-bottom:4px;">🚀 Onboarding Settings</div>
+      <div style="font-size:13px;color:var(--text3);margin-bottom:20px;">Configure default checklist categories and items applied to new joiners. These become Tasks when applied to a candidate.</div>
+
+      <!-- Checklist Template -->
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-header">
+          <span class="panel-title">Default Onboarding Checklist</span>
+          <button class="btn btn-primary btn-sm" onclick="addOnboardingCategory()">+ Add Category</button>
+        </div>
+        <div style="padding:10px 16px;background:var(--bg3);border-bottom:1px solid var(--border);">
+          <div style="font-size:11px;color:var(--text3);">💡 These categories and tasks are applied as a template when you start onboarding a candidate. Each task becomes a linked Task in the Tasks page.</div>
+        </div>
+        <div id="ob-checklist-editor" style="padding:12px 16px;display:flex;flex-direction:column;gap:12px;">
+          ${ob.categories.map((cat,ci) => `
+            <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg4);border-bottom:1px solid var(--border);">
+                <input value="${escapeHtml(cat.icon||'📋')}" onchange="updateObCat(${ci},'icon',this.value)" style="width:40px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:4px;font-size:15px;outline:none;">
+                <input value="${escapeHtml(cat.name)}" onchange="updateObCat(${ci},'name',this.value)" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-weight:700;color:var(--text);outline:none;">
+                <button class="btn btn-ghost btn-sm" onclick="addObTask(${ci})">+ Task</button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteObCat(${ci})">✕</button>
+              </div>
+              <div style="padding:8px 14px;display:flex;flex-direction:column;gap:6px;">
+                ${(cat.tasks||[]).map((task,ti) => `
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="color:var(--text3);font-size:12px;">•</span>
+                    <input value="${escapeHtml(task.title)}" onchange="updateObTask(${ci},${ti},'title',this.value)"
+                      style="flex:1;background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:5px 9px;font-size:12.5px;color:var(--text);outline:none;">
+                    <select onchange="updateObTask(${ci},${ti},'assignTo',this.value)" style="background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--text2);outline:none;">
+                      <option value="hr" ${task.assignTo==='hr'?'selected':''}>HR</option>
+                      <option value="it" ${task.assignTo==='it'?'selected':''}>IT</option>
+                      <option value="manager" ${task.assignTo==='manager'?'selected':''}>Manager</option>
+                      <option value="candidate" ${task.assignTo==='candidate'?'selected':''}>Candidate</option>
+                      <option value="payroll" ${task.assignTo==='payroll'?'selected':''}>Payroll</option>
+                    </select>
+                    <input type="number" value="${task.daysOffset||0}" onchange="updateObTask(${ci},${ti},'daysOffset',parseInt(this.value)||0)"
+                      min="-30" max="90" style="width:60px;background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:5px 6px;font-size:11px;color:var(--text2);outline:none;" title="Days relative to start date (negative = before)">
+                    <span style="font-size:10px;color:var(--text3);white-space:nowrap;">days</span>
+                    <button class="btn btn-ghost btn-sm" style="color:var(--red);padding:3px 7px;" onclick="deleteObTask(${ci},${ti})">✕</button>
+                  </div>`).join('')}
+                ${!(cat.tasks||[]).length ? '<div style="font-size:12px;color:var(--text3);padding:4px 0;">No tasks — click + Task to add</div>' : ''}
+              </div>
+            </div>`).join('')}
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="saveOnboardingSettings()">💾 Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetOnboardingSettings()">↺ Reset to Default</button>
+        </div>
+      </div>
+
+      <!-- Documents Checklist Template -->
+      <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-header">
+          <span class="panel-title">📁 Default Documents Checklist</span>
+          <button class="btn btn-primary btn-sm" onclick="addObDoc()">+ Add Doc</button>
+        </div>
+        <div id="ob-docs-editor" style="padding:12px 16px;display:flex;flex-direction:column;gap:6px;">
+          ${ob.documents.map((doc,di) => `
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:14px;">📄</span>
+              <input value="${escapeHtml(doc)}" onchange="updateObDoc(${di},this.value)" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;color:var(--text);outline:none;">
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);padding:3px 7px;" onclick="deleteObDoc(${di})">✕</button>
+            </div>`).join('')}
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--border);">
+          <button class="btn btn-primary btn-sm" onclick="saveOnboardingSettings()">💾 Save</button>
+        </div>
+      </div>
+
+      <!-- Equipment Checklist Template -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">💻 Default Equipment Checklist</span>
+          <button class="btn btn-primary btn-sm" onclick="addObEquip()">+ Add Item</button>
+        </div>
+        <div id="ob-equip-editor" style="padding:12px 16px;display:flex;flex-direction:column;gap:6px;">
+          ${ob.equipment.map((eq,ei) => `
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:14px;">📦</span>
+              <input value="${escapeHtml(eq)}" onchange="updateObEquip(${ei},this.value)" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;color:var(--text);outline:none;">
+              <button class="btn btn-ghost btn-sm" style="color:var(--red);padding:3px 7px;" onclick="deleteObEquip(${ei})">✕</button>
+            </div>`).join('')}
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--border);">
+          <button class="btn btn-primary btn-sm" onclick="saveOnboardingSettings()">💾 Save</button>
+        </div>
+      </div>`;
+
   } else if(tabId==='s-archive') {
     el.innerHTML = `
       <div style="font-size:18px;font-weight:800;margin-bottom:6px;">🗄️ Archive</div>
@@ -4933,7 +5071,7 @@ function showPage(name, navEl, pushHistory=true) {
   if(titleEl) {
     titleEl.style.opacity = '0';
     const titles = {dashboard:'Dashboard',jobs:'Jobs',projects:'Projects',candidates:'Candidates',pipeline:'Pipeline',
-      interviews:'Interviews',offers:'Offers',analytics:'Analytics',reports:'Reports',inbox:'Inbox',settings:'Settings',jobdetail:'Job Detail'};
+      interviews:'Interviews',offers:'Offers',onboarding:'Onboarding',analytics:'Analytics',reports:'Reports',inbox:'Inbox',settings:'Settings',jobdetail:'Job Detail'};
     setTimeout(()=>{ titleEl.textContent = titles[name]||name; titleEl.style.opacity='1'; }, 100);
   }
 
@@ -4947,6 +5085,7 @@ function showPage(name, navEl, pushHistory=true) {
       if((name==='dashboard'&&txt.startsWith('Dashboard'))||(name==='jobs'&&txt.startsWith('Jobs'))||
          (name==='candidates'&&txt.startsWith('Candidates'))||(name==='pipeline'&&txt.startsWith('Pipeline'))||
          (name==='interviews'&&txt.startsWith('Interviews'))||(name==='offers'&&txt.startsWith('Offers'))||
+         (name==='onboarding'&&txt.startsWith('Onboarding'))||
          (name==='analytics'&&txt.startsWith('Analytics'))||(name==='reports'&&txt.startsWith('Reports'))||
          (name==='inbox'&&txt.startsWith('Inbox'))||(name==='tasks'&&txt.startsWith('Tasks'))||(name==='settings'&&txt.startsWith('Settings')))
         n.classList.add('active');
@@ -4961,6 +5100,7 @@ function showPage(name, navEl, pushHistory=true) {
   else if(name==='pipeline') renderPipeline();
   else if(name==='interviews') renderInterviews();
   else if(name==='offers') renderOffers();
+  else if(name==='onboarding') { renderOnboarding(); checkPendingJoinDates(); }
   else if(name==='analytics') renderAnalytics();
   else if(name==='reports') renderReports();
   else if(name==='inbox') renderInbox();
@@ -5139,6 +5279,10 @@ function refreshRightPanel(id) {
   // Refresh offers section
   const offersSection = document.getElementById('cp-offers-section');
   if(offersSection) offersSection.innerHTML = buildOffersHTML(c);
+
+  // Refresh onboarding section (only visible for Pending Join)
+  const obSection = document.getElementById('cp-onboarding-section');
+  if(obSection) obSection.innerHTML = buildCandOnboardingHTML(c);
 
   // Rebuild interviews section
   const ivSection = document.getElementById('cp-interviews-section');
@@ -5482,6 +5626,7 @@ function renderCandProfileContent(id, fromJobId=null) {
     '<div style="margin-left:auto;display:flex;gap:6px;">' +
     '<button class="btn btn-ghost btn-sm" onclick="openEditCandidate(' + c.id + ')">✏️ Edit</button>' +
     '<button class="btn btn-ghost btn-sm" onclick="openManageDocs(' + c.id + ')">📎 Docs' + (((c.documents||[]).length > 0) ? ' ('+c.documents.length+')' : '') + '</button>' +
+    '<button class="btn btn-primary btn-sm" onclick="openEmailTemplates(' + c.id + ')">✉️ Email</button>' +
     '<button class="btn btn-ghost btn-sm" onclick="openCandInNewTab(' + c.id + ')">↗ New Tab</button>' +
     '<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteCandidate(' + c.id + ')">🗑</button>' +
     '</div></div>' +
@@ -5562,6 +5707,9 @@ function renderCandProfileContent(id, fromJobId=null) {
 
     // Offers
     '<div id="cp-offers-section" style="background:var(--bg2);margin-top:8px;">' + buildOffersHTML(c) + '</div>' +
+
+    // Onboarding section — shown for Pending Join candidates
+    (c.stage === 'Pending Join' ? '<div id="cp-onboarding-section" style="background:var(--bg2);margin-top:8px;">' + buildCandOnboardingHTML(c) + '</div>' : '') +
 
     // Tasks linked to this candidate
     '<div id="cp-tasks-section" style="background:var(--bg2);margin-top:8px;">' + buildCandTasksHTML(c) + '</div>' +
@@ -7537,6 +7685,9 @@ function reactiveUpdate(candId) {
   else if(activePage === 'page-offers') {
     renderOffers();
   }
+  else if(activePage === 'page-onboarding') {
+    renderOnboarding();
+  }
   else if(activePage === 'page-analytics') {
     renderAnalytics();
   }
@@ -7849,6 +8000,7 @@ function buildStageActions(c) {
   // Always-present buttons
   let share = `<button class="btn btn-ghost btn-sm" onclick="shareCandidate(${id})">↗ Share</button>`;
   let move = `<button class="btn btn-ghost btn-sm" onclick="openMoveStage(${id})">Move Stage ↕</button>`;
+  let emailBtn = `<button class="btn btn-ghost btn-sm" style="color:var(--accent);border-color:var(--accent);" onclick="openEmailTemplates(${id})">✉️ Email Templates</button>`;
 
   // Stage-specific primary actions
   let primary = '';
@@ -7900,7 +8052,7 @@ function buildStageActions(c) {
       <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="rejectCandidate(${id})">✕ Reject</button>`;
   }
 
-  return banner + primary + secondary + share + move;
+  return banner + primary + secondary + emailBtn + share + move;
 }
 
 // ── STAGE FOLLOW-UP POPUP ──
@@ -8783,6 +8935,1719 @@ function b64toBlob(b64, type) {
 }
 
 
+// ===================== EMAIL TEMPLATES =====================
+
+const EMAIL_TEMPLATES = [
+  // ── INTERVIEW INVITES ──
+  {
+    id: 'hr_screen',
+    category: 'interview',
+    categoryLabel: 'Interview',
+    icon: '📞',
+    color: 'var(--accent)',
+    title: 'HR Screening Call',
+    subject: 'HR Screening Call Invitation – {job_title} at {company_name}',
+    body: `Dear {candidate_name},
+
+Thank you for your interest in the {job_title} position at {company_name}.
+
+We were impressed by your profile and would like to invite you for a brief HR screening call to learn more about your background and share more details about the role.
+
+📅 Proposed Date: {interview_date}
+⏰ Time: {interview_time}
+📍 Format: {interview_type}
+⏱ Duration: approximately 30 minutes
+
+Please reply to confirm your availability or suggest an alternative time that works for you.
+
+We look forward to speaking with you!
+
+Warm regards,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'tech_interview',
+    category: 'interview',
+    categoryLabel: 'Interview',
+    icon: '💻',
+    color: 'var(--accent)',
+    title: 'Technical Interview',
+    subject: 'Technical Interview Invitation – {job_title} at {company_name}',
+    body: `Dear {candidate_name},
+
+Congratulations on progressing to the next stage of our hiring process for the {job_title} role at {company_name}!
+
+We would like to invite you for a technical interview to assess your skills and experience.
+
+📅 Date: {interview_date}
+⏰ Time: {interview_time}
+📍 Format: {interview_type}
+👤 Interviewer(s): {interviewer_name}
+⏱ Duration: {interview_duration}
+
+What to expect:
+• Technical questions related to the role
+• A practical exercise or case study
+• Q&A session about the team and projects
+
+Please reply to confirm your availability. If you have any questions beforehand, feel free to reach out.
+
+Best regards,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'hiring_manager',
+    category: 'interview',
+    categoryLabel: 'Interview',
+    icon: '👔',
+    color: 'var(--accent)',
+    title: 'Hiring Manager Interview',
+    subject: 'Interview with Hiring Manager – {job_title} at {company_name}',
+    body: `Dear {candidate_name},
+
+We are pleased to move you forward in the selection process for the {job_title} position at {company_name}.
+
+You are invited to meet with our hiring manager for an in-depth interview.
+
+📅 Date: {interview_date}
+⏰ Time: {interview_time}
+📍 Location/Format: {interview_type}
+👤 Interviewer: {interviewer_name}
+⏱ Duration: {interview_duration}
+
+This session will focus on your experience, leadership approach, and alignment with our team's goals. You are also welcome to come prepared with any questions about the role.
+
+Please confirm your attendance by replying to this email.
+
+Best regards,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'final_round',
+    category: 'interview',
+    categoryLabel: 'Interview',
+    icon: '🏆',
+    color: 'var(--accent)',
+    title: 'Final Round Interview',
+    subject: 'Final Round Interview Invitation – {job_title} at {company_name}',
+    body: `Dear {candidate_name},
+
+We are very excited to let you know that you have advanced to the final round of our selection process for the {job_title} position at {company_name}. This is a great achievement and reflects the strong impression you have made so far.
+
+📅 Date: {interview_date}
+⏰ Time: {interview_time}
+📍 Format: {interview_type}
+👤 Panel: {interviewer_name}
+⏱ Duration: {interview_duration}
+
+The final round will include a senior leadership discussion and may involve a brief presentation. Full details will be shared upon confirmation.
+
+Please reply to confirm your attendance. We genuinely look forward to meeting you.
+
+Kind regards,
+{sender_name}
+{company_name}`
+  },
+  // ── REJECTION EMAILS ──
+  {
+    id: 'reject_screening',
+    category: 'rejection',
+    categoryLabel: 'Rejection',
+    icon: '🙏',
+    color: 'var(--red)',
+    title: 'Post-Screening Rejection',
+    subject: 'Your Application for {job_title} at {company_name}',
+    body: `Dear {candidate_name},
+
+Thank you for taking the time to apply for the {job_title} position at {company_name} and for speaking with us recently.
+
+After careful consideration, we have decided to move forward with candidates whose experience more closely matches our current requirements. This was a difficult decision as we received many strong applications.
+
+We genuinely appreciate your interest in joining our team and the time you invested in this process. We encourage you to keep an eye on our future openings that may be a better fit.
+
+We wish you all the best in your job search.
+
+Warm regards,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'reject_interview',
+    category: 'rejection',
+    categoryLabel: 'Rejection',
+    icon: '🙏',
+    color: 'var(--red)',
+    title: 'Post-Interview Rejection',
+    subject: 'Update on Your {job_title} Application – {company_name}',
+    body: `Dear {candidate_name},
+
+Thank you for your time and effort throughout the interview process for the {job_title} position at {company_name}. We genuinely enjoyed getting to know you and learning about your background.
+
+After thorough deliberation, we have decided to move forward with another candidate whose profile more closely aligns with the specific requirements of this role at this time.
+
+This decision was not easy and is in no way a reflection of your abilities. We were impressed by your {highlight} and we encourage you to apply for future roles at {company_name} that match your profile.
+
+We wish you every success in your career.
+
+Kind regards,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'reject_offer',
+    category: 'rejection',
+    categoryLabel: 'Rejection',
+    icon: '🙏',
+    color: 'var(--red)',
+    title: 'Post-Offer Rejection',
+    subject: 'Regarding Your Offer – {job_title} at {company_name}',
+    body: `Dear {candidate_name},
+
+We appreciate the time and energy you dedicated throughout our entire selection process for the {job_title} position.
+
+After further internal discussions, we have made the difficult decision to withdraw the offer at this time. We understand this is disappointing news and sincerely apologise for any inconvenience caused.
+
+We hold you in very high regard and hope this does not discourage you from considering future opportunities with {company_name}. We will keep your profile on file and reach out should a suitable role arise.
+
+Thank you again for your patience and professionalism throughout this process.
+
+With apologies and best wishes,
+{sender_name}
+{company_name}`
+  },
+  // ── OFFER ──
+  {
+    id: 'offer_letter',
+    category: 'offer',
+    categoryLabel: 'Offer',
+    icon: '🎉',
+    color: 'var(--green)',
+    title: 'Offer Letter',
+    subject: 'Job Offer – {job_title} at {company_name}',
+    body: `Dear {candidate_name},
+
+On behalf of the entire team at {company_name}, it is my pleasure to offer you the position of {job_title}.
+
+We were thoroughly impressed throughout the selection process and are confident you will be a valuable addition to our team.
+
+Offer Details:
+💼 Position: {job_title}
+💰 Base Salary: {salary}
+📅 Start Date: {start_date}
+📍 Location: {location}
+
+Please find the formal offer letter attached. We kindly request that you confirm your acceptance by {offer_expiry}.
+
+If you have any questions about the offer or the next steps, please do not hesitate to reach out. We are delighted to welcome you aboard and look forward to working together.
+
+Congratulations again!
+
+Warm regards,
+{sender_name}
+{company_name}`
+  },
+  // ── ONBOARDING SERIES ──
+  {
+    id: 'onboard_welcome',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '👋',
+    color: 'var(--purple)',
+    title: 'Welcome to the Team',
+    subject: 'Welcome to {company_name}, {candidate_name}! 🎉',
+    body: `Dear {candidate_name},
+
+We are absolutely thrilled to officially welcome you to the {company_name} family! 🎊
+
+Your first day is {start_date} and we have been busy getting everything ready for your arrival.
+
+Here is a quick summary of what to expect:
+
+📍 Report to: {location}
+⏰ Arrival time: {interview_time}
+👤 Your buddy/point of contact: {interviewer_name}
+
+On your first day you will:
+• Complete onboarding paperwork
+• Meet your team and key stakeholders
+• Get set up with your equipment and access
+• Take a tour of the office/workspace
+
+Please bring along your IC/passport and any other documents requested in your offer letter.
+
+If you have any questions before you start, please reach out anytime. We are so excited to have you on board!
+
+See you soon,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'onboard_day1_prep',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '📋',
+    color: 'var(--purple)',
+    title: 'Pre-Day 1 Checklist',
+    subject: 'Getting Ready for Your First Day – {company_name}',
+    body: `Dear {candidate_name},
+
+Your start date of {start_date} is just around the corner and we want to make sure your first day goes as smoothly as possible!
+
+Before you arrive, here is a checklist to help you prepare:
+
+✅ Documents to bring:
+   - National ID / Passport (original)
+   - Bank account details for payroll setup
+   - Any certificates or qualifications mentioned in your offer
+
+✅ Tech & access:
+   - You will receive your laptop/equipment on Day 1
+   - IT will contact you at this email address to set up your accounts
+   - Our primary tools include: [list your tools, e.g. Slack, Notion, etc.]
+
+✅ Practical info:
+   - Office address: {location}
+   - Parking / transport: [add details]
+   - Dress code: [smart casual / formal / casual]
+
+✅ Good to know:
+   - Working hours: [e.g. 9am – 6pm]
+   - Lunch break: [e.g. 1pm – 2pm]
+
+Feel free to reply if you have any questions. We cannot wait to have you with us!
+
+Warmly,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'onboard_week1',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '🗓️',
+    color: 'var(--purple)',
+    title: 'First Week Schedule',
+    subject: 'Your First Week at {company_name} – Schedule Inside',
+    body: `Dear {candidate_name},
+
+We have put together your first week schedule to help you settle in and hit the ground running. Welcome again!
+
+📅 Week 1 Overview:
+
+Day 1 – Orientation & Setup
+• Onboarding paperwork & HR induction
+• IT setup: laptop, email, tools access
+• Office tour and introductions
+• Lunch with your team 🍽️
+
+Day 2 – Team & Role Deep Dive
+• 1:1 with your manager: {interviewer_name}
+• Team introductions and current project briefings
+• Review role objectives and 30/60/90 day plan
+
+Day 3–4 – Learning & Shadowing
+• Shadow key team members
+• Access to internal documentation and resources
+• Begin first small task / project
+
+Day 5 – Reflection & Check-in
+• End-of-week check-in with manager
+• Feedback session: how are you settling in?
+• Plan for Week 2
+
+Throughout the week, your buddy will be available to answer any questions. Please do not hesitate to ask — there are no silly questions here!
+
+Looking forward to an amazing first week,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'onboard_30day',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '🌱',
+    color: 'var(--purple)',
+    title: '30-Day Check-in',
+    subject: '30 Days at {company_name} – How Are You Settling In?',
+    body: `Dear {candidate_name},
+
+Can you believe it has already been 30 days since you joined {company_name} as our {job_title}? Time flies when the team is great! 😊
+
+We wanted to take a moment to check in and see how you are feeling about your role, the team, and the company so far.
+
+We would love to schedule a brief 30-day check-in to:
+• Hear your initial impressions and feedback
+• Discuss how you are tracking against your goals
+• Address any questions or concerns you may have
+• Plan the next 60 days together
+
+Suggested time: {interview_date} at {interview_time}
+
+Please let us know if that works or suggest a time that suits you better.
+
+Your feedback matters a lot to us — we want to make sure you are happy, supported, and set up for success here.
+
+Warmly,
+{sender_name}
+{company_name}`
+  },
+  // ── ONBOARDING WORKFLOW EMAILS ──
+  {
+    id: 'ob_docs_offer',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '📄',
+    color: 'var(--purple)',
+    title: 'Docs for Offer Email',
+    audience: 'candidate',
+    subject: 'Documents Required – {job_title} Offer at {company_name}',
+    body: `Dear {candidate_name},
+
+We are pleased to inform you that we would like to extend an offer for the {job_title} position at {company_name}.
+
+Before we proceed, we kindly request the following documents:
+
+📋 Required Documents:
+• National IC / Passport (both sides)
+• Latest payslip (last 3 months)
+• Bank account details
+• Latest academic certificate
+• Previous employment letter / resignation letter
+
+Please send the above documents to this email at your earliest convenience so we may proceed with your formal offer.
+
+Should you have any questions, please do not hesitate to reach out.
+
+Best regards,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'ob_indicative_offer',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '💰',
+    color: 'var(--purple)',
+    title: 'Indicative Offer Email',
+    audience: 'candidate',
+    subject: 'Indicative Offer – {job_title} at {company_name}',
+    body: `Dear {candidate_name},
+
+Further to our recent discussions, we are delighted to share the indicative offer for the {job_title} position at {company_name}.
+
+Indicative Offer Summary:
+💼 Position: {job_title}
+💰 Base Salary: {salary}
+📅 Proposed Start Date: {start_date}
+📍 Work Location: {location}
+
+Please note that this is an indicative offer pending final approvals. The formal offer letter will follow once we have received and verified your documents.
+
+Please confirm your interest in proceeding by replying to this email. Do not hesitate to reach out if you have any questions regarding the package.
+
+We look forward to your positive response!
+
+Warm regards,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'ob_post_acceptance',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '🎉',
+    color: 'var(--purple)',
+    title: 'Post-Acceptance Congratulations',
+    audience: 'candidate',
+    subject: 'Welcome Aboard! Next Steps – {company_name}',
+    body: `Dear {candidate_name},
+
+Congratulations and a very warm welcome to {company_name}! 🎉 We are absolutely thrilled that you have accepted our offer for the {job_title} role.
+
+Please find attached:
+📎 Employee Handbook
+📎 Code of Conduct & Policies
+📎 IT & Security Guidelines
+📎 Benefits Summary
+
+Please review these documents before your start date of {start_date}.
+
+Next Steps:
+1. Sign and return your Employment Contract by [deadline]
+2. Complete the pre-employment documentation checklist (to follow)
+3. Await further instructions from our People Services team
+
+If you have any questions in the meantime, please reach out anytime. We cannot wait to have you on board!
+
+Warmest regards,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'ob_create_employee_id',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '🪪',
+    color: 'var(--purple)',
+    title: 'People Services – Create Employee ID',
+    audience: 'internal',
+    subject: 'New Hire – Employee ID Creation Request: {candidate_name}',
+    body: `Hi People Services Team,
+
+Please be informed that we have a new hire joining {company_name} and kindly request the creation of an Employee ID.
+
+New Hire Details:
+👤 Full Name: {candidate_name}
+💼 Position: {job_title}
+📅 Start Date: {start_date}
+📍 Location: {location}
+🏷️ Department: [Department Name]
+👔 Reporting To: {interviewer_name}
+
+Please proceed with creating the Employee ID and notify us once done so we can proceed with SAP account creation.
+
+Attached is the candidate's IC copy and signed offer letter for your reference.
+
+Thank you!
+
+Best regards,
+{sender_name}
+HR / Talent Acquisition
+{company_name}`
+  },
+  {
+    id: 'ob_sap_laptop',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '💻',
+    color: 'var(--purple)',
+    title: 'People Services + IT – SAP & Laptop',
+    audience: 'internal',
+    subject: 'New Hire Setup Request – SAP Account & Laptop: {candidate_name}',
+    body: `Hi Team,
+
+Following the Employee ID creation for our new hire below, please proceed with the following setup:
+
+New Hire Details:
+👤 Name: {candidate_name}
+🪪 Employee ID: [Employee ID — please fill once received]
+💼 Position: {job_title}
+📅 Start Date: {start_date}
+🏷️ Department: [Department Name]
+
+For People Services:
+• Please create SAP account with the Employee ID above
+• Assign relevant access based on role: {job_title}
+• Confirm once SAP access is active
+
+For IT Department:
+• Please prepare 1 x laptop for collection
+• Required software: [list required software]
+• Collection date: [preferred collection date — before start date]
+• Coordinate collection with the employee directly at: {candidate_email}
+
+Please acknowledge receipt of this request and advise on timeline.
+
+Thank you!
+
+Best regards,
+{sender_name}
+HR / Talent Acquisition
+{company_name}`
+  },
+  {
+    id: 'ob_payroll_docs',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '📋',
+    color: 'var(--purple)',
+    title: 'Payroll Docs Collection (to candidate)',
+    audience: 'candidate',
+    subject: 'Action Required: Payroll Documents – {company_name}',
+    body: `Dear {candidate_name},
+
+As your start date of {start_date} approaches, we need to complete your payroll setup. Kindly submit the following documents as soon as possible:
+
+📋 Payroll Documents Required:
+• Bank account details (bank name, account number, account holder name)
+• EPF (KWSP) number
+• SOCSO (PERKESO) number
+• Income tax (PCB) reference number
+• Form EA / EA equivalent (from previous employer, if applicable)
+• Completed PCB declaration form (CP22 / CP22A — we will provide the form)
+
+Please submit these documents by [deadline date] to ensure your first salary is processed without delay.
+
+You may send the documents directly to this email or bring physical copies on your first day.
+
+Do reach out if you need any clarification.
+
+Best regards,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'ob_team_leader_notify',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '👋',
+    color: 'var(--purple)',
+    title: 'Team Leader Notification',
+    audience: 'internal',
+    subject: 'New Team Member Joining: {candidate_name} – {start_date}',
+    body: `Hi {interviewer_name},
+
+Please be informed that your new team member will be joining shortly.
+
+New Joiner Details:
+👤 Name: {candidate_name}
+💼 Role: {job_title}
+📅 Start Date: {start_date}
+📍 Location: {location}
+
+Please ensure the following are in place before their first day:
+✅ Desk / workstation allocated
+✅ Team introduction planned
+✅ First week schedule / induction plan prepared
+✅ Buddy / mentor assigned
+✅ Access to relevant team channels, folders and tools
+
+Their IT equipment and system accesses are being arranged. You will be notified once SAP and laptop are ready.
+
+Please feel free to reach out if you need any support in preparing for the new joiner.
+
+Best regards,
+{sender_name}
+HR / Talent Acquisition
+{company_name}`
+  },
+  {
+    id: 'ob_calendar_invite',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '📅',
+    color: 'var(--purple)',
+    title: 'Onboarding Calendar Invite',
+    audience: 'candidate',
+    subject: 'Your Onboarding Schedule – {company_name} | Starts {start_date}',
+    body: `Dear {candidate_name},
+
+We are so excited to have you joining us on {start_date}! Please find below your onboarding schedule for your first week.
+
+📅 Onboarding Schedule:
+
+Day 1 – {start_date}
+⏰ 9:00 AM — Arrival & Welcome
+   Report to: {location}
+   Meet: {interviewer_name}
+
+⏰ 9:30 AM — HR Induction & Paperwork
+⏰ 11:00 AM — IT Setup & Equipment Collection
+⏰ 12:30 PM — Welcome Lunch with Team 🍽️
+⏰ 2:00 PM — Office Tour & Team Introductions
+⏰ 4:00 PM — 1:1 with your Manager
+
+Day 2–3 — Team Deep Dive & Role Orientation
+Day 4–5 — Shadowing & First Tasks
+
+We will send you a formal calendar invite for each session shortly.
+
+What to bring on Day 1:
+• National IC / Passport (original)
+• All signed documents
+• Bank details (if not yet submitted)
+
+Any questions? Reply to this email anytime. See you soon! 🎉
+
+Warm regards,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'ob_day1_email',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '🌅',
+    color: 'var(--purple)',
+    title: 'Day 1 Welcome Email',
+    audience: 'candidate',
+    subject: '🌅 Welcome to Day 1 at {company_name}, {candidate_name}!',
+    body: `Dear {candidate_name},
+
+Today is the day! Welcome to {company_name} — we are so glad you are here! 🎉
+
+Here is everything you need for today:
+
+📍 Where to go:
+{location}
+Please arrive by 9:00 AM and ask for {interviewer_name} at reception.
+
+🔑 What you'll receive today:
+• Your employee ID card
+• Laptop and equipment
+• System access credentials
+• Employee handbook & key documents
+
+👥 Who you'll meet:
+Your buddy for the day is {interviewer_name}, who will guide you through orientation and introduce you to the team.
+
+🍽️ Lunch:
+We have arranged a welcome lunch at 12:30 PM. Looking forward to celebrating with you!
+
+If you have any last-minute questions or are running late, please call or message {sender_name} directly.
+
+Once again, a very warm welcome. This is just the beginning of a great journey together!
+
+With excitement,
+{sender_name}
+{company_name}`
+  },
+  {
+    id: 'ob_payroll_submission',
+    category: 'onboarding',
+    categoryLabel: 'Onboarding',
+    icon: '💵',
+    color: 'var(--purple)',
+    title: 'Payroll Submission (to Payroll Team)',
+    audience: 'internal',
+    subject: 'New Joiner Payroll Submission – {candidate_name} | {start_date}',
+    body: `Hi Payroll Team,
+
+Please find attached the payroll documents for our new joiner who has officially joined us.
+
+New Joiner Details:
+👤 Full Name: {candidate_name}
+🪪 Employee ID: [Employee ID]
+💼 Position: {job_title}
+📅 Date Joined: {start_date}
+💰 Agreed Salary: {salary}
+🏷️ Department: [Department Name]
+💳 Bank: [Bank Name]
+🏦 Account No: [Account Number]
+
+Attached Documents:
+📎 Signed Employment Contract
+📎 IC / Passport copy
+📎 Bank account details
+📎 EPF / SOCSO details
+📎 Completed PCB / CP22 form
+📎 Signed offer letter
+
+Kindly process the above for the upcoming payroll cycle. Please acknowledge receipt and advise if any documents are outstanding.
+
+Thank you!
+
+Best regards,
+{sender_name}
+HR / Talent Acquisition
+{company_name}`
+  },
+];
+
+// Variables that get replaced in templates
+function getEmailVariables(candId) {
+  const c = getCand(candId);
+  const job = c ? getJob(c.jobId) : null;
+  const s = getSettings();
+  const upcomingIV = c ? (c.interviews||[]).find(iv => iv.status === 'Scheduled') : null;
+  const latestOffer = c ? offers.find(o => o.candidateId === c.id) : null;
+  const today = new Date();
+  const nextWeek = new Date(today.getTime() + 7*24*60*60*1000);
+
+  return {
+    candidate_name: c?.name || '[Candidate Name]',
+    job_title: job?.title || '[Job Title]',
+    company_name: s.companyName || '[Company Name]',
+    sender_name: s.yourName || '[Your Name]',
+    interview_date: upcomingIV?.date || nextWeek.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+    interview_time: upcomingIV?.time || '10:00 AM',
+    interview_type: upcomingIV?.type || 'Video Call (link to follow)',
+    interview_duration: upcomingIV?.duration || '1 hour',
+    interviewer_name: upcomingIV?.interviewer || s.yourName || '[Interviewer Name]',
+    salary: latestOffer?.salary || '[Salary]',
+    start_date: latestOffer?.startDate || '[Start Date]',
+    offer_expiry: latestOffer?.expiryDate || '[Offer Expiry Date]',
+    location: job?.location || s.country || '[Location]',
+    highlight: '[a specific strength you observed]',
+  };
+}
+
+function fillEmailTemplate(body, vars) {
+  let result = body;
+  Object.entries(vars).forEach(([key, val]) => {
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), val);
+  });
+  return result;
+}
+
+function openEmailTemplates(candId) {
+  const c = getCand(candId);
+  if(!c) return;
+  const vars = getEmailVariables(candId);
+  const categories = [
+    { id: 'interview',  label: '📅 Interview Invites',  color: 'var(--accent)' },
+    { id: 'rejection',  label: '🙏 Rejection Emails',   color: 'var(--red)' },
+    { id: 'offer',      label: '🎉 Offer',               color: 'var(--green)' },
+    { id: 'onboarding', label: '🚀 Onboarding Workflow', color: 'var(--purple)' },
+  ];
+
+  document.getElementById('modal-title').innerHTML = `✉️ Email Templates — <span style="color:var(--accent)">${escapeHtml(c.name)}</span>`;
+  document.getElementById('modal-overlay').style.setProperty('--modal-w','780px');
+
+  const catBtns = categories.map(cat => {
+    const count = EMAIL_TEMPLATES.filter(t => t.category === cat.id).length;
+    return `<button onclick="filterEmailTplCategory('${cat.id}', this)" data-cat="${cat.id}"
+      style="padding:7px 14px;border-radius:7px;border:1.5px solid var(--border);background:var(--bg3);
+        color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:inherit;"
+      onmouseover="this.style.borderColor='${cat.color}';this.style.color='${cat.color}'"
+      onmouseout="if(!this.classList.contains('active-cat')){this.style.borderColor='var(--border)';this.style.color='var(--text2)'}"
+    >${cat.label} <span style="font-size:10px;opacity:0.7;">${count}</span></button>`;
+  }).join('');
+
+  const tplCards = EMAIL_TEMPLATES.map(t => `
+    <div class="email-tpl-card" data-tpl="${t.id}" data-cat="${t.category}"
+      onclick="selectEmailTemplate('${t.id}', ${candId})">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:18px;">${t.icon}</span>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;">${t.title}</div>
+          <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
+            <span style="font-size:10px;font-weight:700;color:${t.color};text-transform:uppercase;letter-spacing:0.5px;">${t.categoryLabel}</span>
+            ${t.audience==='internal' ? '<span style="font-size:9px;background:var(--amber-dim);color:var(--amber);border-radius:3px;padding:1px 5px;font-weight:700;">INTERNAL</span>' : (t.audience==='candidate' ? '<span style="font-size:9px;background:var(--accent-dim);color:var(--accent);border-radius:3px;padding:1px 5px;font-weight:700;">TO CANDIDATE</span>' : '')}
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--text3);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${escapeHtml(t.subject)}</div>
+    </div>`).join('');
+
+  document.getElementById('modal-body').innerHTML = `
+    <!-- Candidate context bar -->
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border-radius:10px;border:1px solid var(--border);">
+      <div style="width:34px;height:34px;border-radius:50%;background:${c.color}33;color:${c.color};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${c.initials}</div>
+      <div>
+        <div style="font-size:13px;font-weight:700;">${escapeHtml(c.name)}</div>
+        <div style="font-size:11px;color:var(--text3);">${escapeHtml(getJob(c.jobId)?.title||'No job')} · ${c.stage} · ${c.email||'No email'}</div>
+      </div>
+      ${c.email ? `<a href="mailto:${c.email}" style="margin-left:auto;font-size:11px;color:var(--accent);text-decoration:none;">📧 Open Mail App</a>` : ''}
+    </div>
+
+    <!-- Category filter -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">${catBtns}</div>
+
+    <!-- Two-column layout: template list | preview -->
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;min-height:400px;">
+
+      <!-- Left: template cards -->
+      <div id="email-tpl-list" style="display:flex;flex-direction:column;gap:8px;overflow-y:auto;max-height:440px;">
+        ${tplCards}
+      </div>
+
+      <!-- Right: preview -->
+      <div id="email-tpl-preview" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="text-align:center;padding:60px 20px;color:var(--text3);">
+          <div style="font-size:36px;margin-bottom:10px;">✉️</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text);">Select a template</div>
+          <div style="font-size:12px;margin-top:4px;">Variables will be auto-filled from the candidate's profile</div>
+        </div>
+      </div>
+
+    </div>`;
+
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    <button class="btn btn-ghost" id="email-edit-vars-btn" style="display:none;" onclick="openEmailVarEditor(${candId})">✏️ Edit Variables</button>
+    <button class="btn btn-primary" id="email-copy-btn" style="display:none;" onclick="copyEmailToClipboard(${candId})">📋 Copy Email</button>`;
+
+  document.getElementById('modal-overlay').classList.add('open');
+
+  // Auto-select first template
+  setTimeout(() => selectEmailTemplate(EMAIL_TEMPLATES[0].id, candId), 50);
+}
+
+function filterEmailTplCategory(catId, btn) {
+  // Update button styles
+  document.querySelectorAll('[data-cat-filter]').forEach(b => {
+    b.classList.remove('active-cat');
+    b.style.borderColor = 'var(--border)';
+    b.style.color = 'var(--text2)';
+    b.style.background = 'var(--bg3)';
+  });
+  // Toggle: if already filtering this cat, show all
+  const cards = document.querySelectorAll('.email-tpl-card');
+  const allVisible = [...cards].every(c => c.style.display !== 'none');
+  const cat = btn.dataset.cat;
+
+  // Check if this cat is currently active
+  if(btn.classList.contains('active-cat')) {
+    // Show all
+    btn.classList.remove('active-cat');
+    btn.style.borderColor = 'var(--border)';
+    btn.style.color = 'var(--text2)';
+    btn.style.background = 'var(--bg3)';
+    cards.forEach(c => c.style.display = '');
+  } else {
+    btn.classList.add('active-cat');
+    const col = EMAIL_TEMPLATES.find(t => t.category === cat)?.color || 'var(--accent)';
+    btn.style.borderColor = col;
+    btn.style.color = col;
+    btn.style.background = col.replace('var(', 'var(--').replace(')', '-dim)');
+    cards.forEach(c => {
+      c.style.display = c.dataset.cat === cat ? '' : 'none';
+    });
+  }
+}
+
+let _currentEmailTplId = null;
+let _currentEmailCandId = null;
+
+function selectEmailTemplate(tplId, candId) {
+  _currentEmailTplId = tplId;
+  _currentEmailCandId = candId;
+
+  const tpl = EMAIL_TEMPLATES.find(t => t.id === tplId);
+  if(!tpl) return;
+  const vars = getEmailVariables(candId);
+  const filledSubject = fillEmailTemplate(tpl.subject, vars);
+  const filledBody = fillEmailTemplate(tpl.body, vars);
+
+  // Highlight un-filled variables
+  const highlightVars = (text) => escapeHtml(text).replace(
+    /\[([^\]]+)\]/g,
+    '<span style="background:var(--amber-dim);color:var(--amber);border-radius:3px;padding:0 4px;font-weight:700;">[$1]</span>'
+  );
+
+  // Update card selection
+  document.querySelectorAll('.email-tpl-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.tpl === tplId);
+  });
+
+  const previewEl = document.getElementById('email-tpl-preview');
+  if(!previewEl) return;
+
+  const c = getCand(candId);
+
+  previewEl.innerHTML = `
+    <!-- Subject -->
+    <div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:5px;">Subject Line</div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;
+        font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <span id="email-subject-text">${highlightVars(filledSubject)}</span>
+        <button onclick="copySubjectLine()" class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:11px;">Copy</button>
+      </div>
+    </div>
+
+    <!-- Body preview -->
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);">Email Body</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="font-size:11px;color:var(--amber);">⚠ Yellow = needs manual editing</span>
+        </div>
+      </div>
+      <div id="email-body-preview" class="email-preview-box">${highlightVars(filledBody)}</div>
+    </div>
+
+    <!-- Quick variable chips -->
+    <div style="display:flex;flex-wrap:wrap;gap:5px;padding:8px 0 0;">
+      ${Object.entries(vars).map(([k,v]) =>
+        `<span title="Will be replaced with: ${escapeHtml(v)}" style="background:var(--bg3);border:1px solid var(--border);
+          border-radius:4px;padding:2px 7px;font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;">
+          {${k}} → <span style="color:var(--text);">${escapeHtml(String(v).slice(0,20))}${v.length>20?'…':''}</span>
+        </span>`
+      ).join('')}
+    </div>`;
+
+  // Show action buttons
+  const copyBtn = document.getElementById('email-copy-btn');
+  const editBtn = document.getElementById('email-edit-vars-btn');
+  if(copyBtn) copyBtn.style.display = '';
+  if(editBtn) editBtn.style.display = '';
+}
+
+function copySubjectLine() {
+  const tpl = EMAIL_TEMPLATES.find(t => t.id === _currentEmailTplId);
+  if(!tpl) return;
+  const vars = getEmailVariables(_currentEmailCandId);
+  const subject = fillEmailTemplate(tpl.subject, vars);
+  navigator.clipboard.writeText(subject).then(() => {
+    showToast('Subject line copied! 📋');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = subject;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    showToast('Subject line copied! 📋');
+  });
+}
+
+function copyEmailToClipboard(candId) {
+  const tpl = EMAIL_TEMPLATES.find(t => t.id === _currentEmailTplId);
+  if(!tpl) return;
+  const vars = getEmailVariables(candId || _currentEmailCandId);
+  const body = fillEmailTemplate(tpl.body, vars);
+
+  navigator.clipboard.writeText(body).then(() => {
+    const btn = document.getElementById('email-copy-btn');
+    if(btn) {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '✓ Copied!';
+      btn.style.background = 'var(--green)';
+      setTimeout(() => { btn.innerHTML = orig; btn.style.background = ''; }, 2000);
+    }
+    showToast('Email body copied to clipboard! Now paste into your email app ✉️');
+  }).catch(() => {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = body;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try { document.execCommand('copy'); showToast('Email copied! ✉️'); }
+    catch(e) { showToast('Could not copy — try selecting and copying manually'); }
+    ta.remove();
+  });
+}
+
+function openEmailVarEditor(candId) {
+  const c = getCand(candId); if(!c) return;
+  const vars = getEmailVariables(candId);
+  const s = getSettings();
+  const job = getJob(c.jobId);
+
+  document.getElementById('modal-title').textContent = '✏️ Edit Email Variables';
+  document.getElementById('modal-overlay').style.setProperty('--modal-w','540px');
+  document.getElementById('modal-body').innerHTML = `
+    <div style="font-size:12.5px;color:var(--text3);margin-bottom:4px;">
+      These values are auto-filled from the candidate's profile and settings. Edit them here for this email only.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${Object.entries(vars).map(([key, val]) => `
+        <div class="form-group">
+          <label style="font-family:'JetBrains Mono',monospace;color:var(--accent);">{${key}}</label>
+          <input type="text" id="evar-${key}" value="${escapeHtml(String(val))}" placeholder="${key.replace(/_/g,' ')}">
+        </div>`).join('')}
+    </div>`;
+  document.getElementById('modal-footer').innerHTML = `
+    <button class="btn btn-ghost" onclick="openEmailTemplates(${candId})">← Back</button>
+    <button class="btn btn-primary" onclick="applyEmailVarOverrides(${candId})">Apply & Preview</button>`;
+}
+
+// Store overridden vars per session
+window._emailVarOverrides = {};
+
+function applyEmailVarOverrides(candId) {
+  const vars = getEmailVariables(candId);
+  const overrides = {};
+  Object.keys(vars).forEach(key => {
+    const el = document.getElementById('evar-' + key);
+    if(el && el.value !== String(vars[key])) overrides[key] = el.value;
+  });
+  window._emailVarOverrides[candId] = overrides;
+  openEmailTemplates(candId);
+  setTimeout(() => {
+    if(_currentEmailTplId) selectEmailTemplate(_currentEmailTplId, candId);
+  }, 100);
+}
+
+// Override getEmailVariables to apply session overrides
+const _origGetEmailVariables = getEmailVariables;
+// Patch fillEmailTemplate to use overrides
+const _origFillEmailTemplate = fillEmailTemplate;
+function getEmailVariablesWithOverrides(candId) {
+  const base = _origGetEmailVariables(candId);
+  const overrides = window._emailVarOverrides?.[candId] || {};
+  return { ...base, ...overrides };
+}
+// Re-point getEmailVariables calls inside the template functions:
+function getEmailVariables(candId) {
+  const c = getCand(candId);
+  const job = c ? getJob(c.jobId) : null;
+  const s = getSettings();
+  const upcomingIV = c ? (c.interviews||[]).find(iv => iv.status === 'Scheduled') : null;
+  const latestOffer = c ? offers.find(o => o.candidateId === c.id) : null;
+  const today = new Date();
+  const nextWeek = new Date(today.getTime() + 7*24*60*60*1000);
+  const base = {
+    candidate_name: c?.name || '[Candidate Name]',
+    job_title: job?.title || '[Job Title]',
+    company_name: s.companyName || '[Company Name]',
+    sender_name: s.yourName || '[Your Name]',
+    interview_date: upcomingIV?.date || nextWeek.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+    interview_time: upcomingIV?.time || '10:00 AM',
+    interview_type: upcomingIV?.type || 'Video Call (link to follow)',
+    interview_duration: upcomingIV?.duration || '1 hour',
+    interviewer_name: upcomingIV?.interviewer || s.yourName || '[Interviewer Name]',
+    salary: latestOffer?.salary || '[Salary]',
+    start_date: latestOffer?.startDate || '[Start Date]',
+    offer_expiry: latestOffer?.expiryDate || '[Offer Expiry Date]',
+    location: job?.location || s.country || '[Location]',
+    candidate_email: c?.email || '[Candidate Email]',
+    highlight: '[a specific strength you observed]',
+  };
+  const overrides = window._emailVarOverrides?.[candId] || {};
+  return { ...base, ...overrides };
+}
+
+// ===================== ONBOARDING SYSTEM =====================
+
+// ── Default onboarding settings ──
+const DEFAULT_ONBOARDING_SETTINGS = {
+  categories: [
+    {
+      icon: '📄', name: 'Pre-Offer Documents',
+      tasks: [
+        { title: 'Send docs checklist for offer email to candidate', assignTo: 'hr', daysOffset: -30 },
+        { title: 'Send indicative offer email to candidate', assignTo: 'hr', daysOffset: -28 },
+      ]
+    },
+    {
+      icon: '🎉', name: 'Post-Acceptance',
+      tasks: [
+        { title: 'Send congratulatory email with policies & handbook', assignTo: 'hr', daysOffset: -21 },
+        { title: 'Email People Services to create Employee ID', assignTo: 'hr', daysOffset: -21 },
+      ]
+    },
+    {
+      icon: '💻', name: 'IT & Systems Setup',
+      tasks: [
+        { title: 'Email People Services to create SAP account', assignTo: 'hr', daysOffset: -14 },
+        { title: 'Email IT for laptop collection arrangement', assignTo: 'it', daysOffset: -14 },
+      ]
+    },
+    {
+      icon: '💵', name: 'Payroll & Docs',
+      tasks: [
+        { title: 'Send docs collection email to candidate for payroll', assignTo: 'hr', daysOffset: -10 },
+      ]
+    },
+    {
+      icon: '👥', name: 'Pre-Joining Comms',
+      tasks: [
+        { title: 'Email team leader — new subordinate joining soon', assignTo: 'manager', daysOffset: -7 },
+        { title: 'Send onboarding calendar invite to new joiner', assignTo: 'hr', daysOffset: -5 },
+        { title: 'Send Day 1 welcome email to candidate', assignTo: 'hr', daysOffset: -1 },
+      ]
+    },
+    {
+      icon: '✅', name: 'Post-Joining',
+      tasks: [
+        { title: 'Submit payroll docs to payroll team', assignTo: 'payroll', daysOffset: 3 },
+        { title: 'Collect signed offer letter & employment contract', assignTo: 'hr', daysOffset: 1 },
+        { title: 'Confirm equipment received by new joiner', assignTo: 'it', daysOffset: 1 },
+      ]
+    },
+  ],
+  documents: [
+    'Offer Letter (signed)',
+    'Employment Contract (signed)',
+    'IC / Passport copy',
+    'Bank account details',
+    'EPF / SOCSO details',
+    'Tax (PCB) form',
+    'Emergency contact form',
+    'Academic certificates',
+    'Previous employment letter',
+  ],
+  equipment: [
+    'Laptop / Computer',
+    'Access card / Security badge',
+    'Office keys',
+    'Company phone (if applicable)',
+    'Parking pass (if applicable)',
+    'Stationery & welcome kit',
+  ],
+};
+
+function getOnboardingSettings() {
+  try {
+    const s = getSettings();
+    if(s.onboarding) return s.onboarding;
+    return JSON.parse(JSON.stringify(DEFAULT_ONBOARDING_SETTINGS));
+  } catch(e) { return JSON.parse(JSON.stringify(DEFAULT_ONBOARDING_SETTINGS)); }
+}
+
+function saveOnboardingSettings() {
+  const s = getSettings();
+  s.onboarding = getOnboardingSettings();
+  localStorage.setItem('tf_settings', JSON.stringify(s));
+  showToast('Onboarding settings saved ✓');
+  switchSettingsTab('s-onboarding');
+}
+
+function resetOnboardingSettings() {
+  if(!confirm('Reset to default onboarding checklist?')) return;
+  const s = getSettings();
+  s.onboarding = JSON.parse(JSON.stringify(DEFAULT_ONBOARDING_SETTINGS));
+  localStorage.setItem('tf_settings', JSON.stringify(s));
+  showToast('Reset to defaults');
+  switchSettingsTab('s-onboarding');
+}
+
+function _saveObSettings(ob) {
+  const s = getSettings();
+  s.onboarding = ob;
+  localStorage.setItem('tf_settings', JSON.stringify(s));
+}
+
+function updateObCat(ci, key, val) {
+  const ob = getOnboardingSettings();
+  ob.categories[ci][key] = val;
+  _saveObSettings(ob);
+}
+function deleteObCat(ci) {
+  const ob = getOnboardingSettings();
+  ob.categories.splice(ci,1);
+  _saveObSettings(ob);
+  switchSettingsTab('s-onboarding');
+}
+function addOnboardingCategory() {
+  const ob = getOnboardingSettings();
+  ob.categories.push({ icon:'📋', name:'New Category', tasks:[] });
+  _saveObSettings(ob);
+  switchSettingsTab('s-onboarding');
+}
+function addObTask(ci) {
+  const ob = getOnboardingSettings();
+  if(!ob.categories[ci].tasks) ob.categories[ci].tasks = [];
+  ob.categories[ci].tasks.push({ title:'New task', assignTo:'hr', daysOffset:0 });
+  _saveObSettings(ob);
+  switchSettingsTab('s-onboarding');
+}
+function updateObTask(ci, ti, key, val) {
+  const ob = getOnboardingSettings();
+  ob.categories[ci].tasks[ti][key] = val;
+  _saveObSettings(ob);
+}
+function deleteObTask(ci, ti) {
+  const ob = getOnboardingSettings();
+  ob.categories[ci].tasks.splice(ti,1);
+  _saveObSettings(ob);
+  switchSettingsTab('s-onboarding');
+}
+function updateObDoc(di, val) {
+  const ob = getOnboardingSettings();
+  ob.documents[di] = val;
+  _saveObSettings(ob);
+}
+function deleteObDoc(di) {
+  const ob = getOnboardingSettings();
+  ob.documents.splice(di,1);
+  _saveObSettings(ob);
+  switchSettingsTab('s-onboarding');
+}
+function addObDoc() {
+  const ob = getOnboardingSettings();
+  ob.documents.push('New document');
+  _saveObSettings(ob);
+  switchSettingsTab('s-onboarding');
+}
+function updateObEquip(ei, val) {
+  const ob = getOnboardingSettings();
+  ob.equipment[ei] = val;
+  _saveObSettings(ob);
+}
+function deleteObEquip(ei) {
+  const ob = getOnboardingSettings();
+  ob.equipment.splice(ei,1);
+  _saveObSettings(ob);
+  switchSettingsTab('s-onboarding');
+}
+function addObEquip() {
+  const ob = getOnboardingSettings();
+  ob.equipment.push('New item');
+  _saveObSettings(ob);
+  switchSettingsTab('s-onboarding');
+}
+
+// ── Onboarding data on candidate ──
+// c.onboarding = {
+//   startedAt: iso, taskIds: ['tk_xxx',...], docs: [{label,checked}], equipment: [{label,checked}]
+// }
+
+function getCandOnboarding(c) {
+  if(!c.onboarding) c.onboarding = { startedAt: null, taskIds: [], docs: [], equipment: [] };
+  return c.onboarding;
+}
+
+// Apply the default checklist template to a candidate — creates real Tasks
+function applyOnboardingTemplate(candId) {
+  const c = getCand(candId); if(!c) return;
+  const ob = getOnboardingSettings();
+  const startDate = (offers.find(o=>o.candidateId===candId&&o.status==='Accepted')?.startDate) || null;
+  const startMs = startDate ? new Date(startDate).getTime() : null;
+
+  const onb = getCandOnboarding(c);
+  onb.startedAt = onb.startedAt || new Date().toISOString();
+
+  // Remove any previously created onboarding tasks for this candidate
+  tasks = tasks.filter(t => !(t.candidateId == candId && t._onboarding));
+
+  const newTaskIds = [];
+  ob.categories.forEach(cat => {
+    (cat.tasks||[]).forEach(tpl => {
+      let dueDate = '';
+      if(startMs) {
+        const d = new Date(startMs + tpl.daysOffset * 86400000);
+        dueDate = d.toISOString().split('T')[0];
+      }
+      const assigneeLabel = { hr:'HR',it:'IT',manager:'Manager',candidate:'Candidate',payroll:'Payroll' }[tpl.assignTo]||'HR';
+      const task = {
+        id: 'tk_ob_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+        title: tpl.title,
+        description: `Onboarding task for ${c.name} — ${cat.name}`,
+        status: 'New',
+        priority: 'High',
+        type: 'Operational',
+        dueDate,
+        jobId: String(c.jobId||''),
+        candidateId: String(candId),
+        _onboarding: true,
+        _obCategory: cat.name,
+        _obAssignTo: assigneeLabel,
+        createdAt: Date.now(),
+      };
+      tasks.push(task);
+      newTaskIds.push(task.id);
+    });
+  });
+
+  // Default docs & equipment from settings if not already set
+  if(!onb.docs.length) onb.docs = ob.documents.map(d => ({ label: d, checked: false }));
+  if(!onb.equipment.length) onb.equipment = ob.equipment.map(e => ({ label: e, checked: false }));
+  onb.taskIds = newTaskIds;
+
+  c.onboarding = onb;
+  save();
+  showToast(`Onboarding checklist applied — ${newTaskIds.length} tasks created ✓`);
+  reactiveUpdate(candId);
+}
+
+// ── Two-way task sync: tick in onboarding ↔ tick in Tasks ──
+function toggleOnboardingTask(taskId, candId) {
+  const t = tasks.find(x => x.id === taskId);
+  if(!t) return;
+  t.status = t.status === 'Done' ? 'New' : 'Done';
+  t.updatedAt = Date.now();
+  save();
+  // Refresh whichever view is visible
+  const page = document.querySelector('.page.active')?.id;
+  if(page === 'page-onboarding') renderOnboarding();
+  if(page === 'page-candprofile') {
+    const sec = document.getElementById('cp-onboarding-section');
+    if(sec) sec.innerHTML = buildCandOnboardingHTML(getCand(candId));
+  }
+  if(page === 'page-tasks') renderTasks();
+  updateSidebarBadges();
+}
+
+function toggleOnboardingDoc(candId, di) {
+  const c = getCand(candId); if(!c) return;
+  const onb = getCandOnboarding(c);
+  if(onb.docs[di]) onb.docs[di].checked = !onb.docs[di].checked;
+  save();
+  const sec = document.getElementById('cp-onboarding-section');
+  if(sec) sec.innerHTML = buildCandOnboardingHTML(c);
+  const page = document.querySelector('.page.active')?.id;
+  if(page === 'page-onboarding') renderOnboarding();
+}
+
+function toggleOnboardingEquip(candId, ei) {
+  const c = getCand(candId); if(!c) return;
+  const onb = getCandOnboarding(c);
+  if(onb.equipment[ei]) onb.equipment[ei].checked = !onb.equipment[ei].checked;
+  save();
+  const sec = document.getElementById('cp-onboarding-section');
+  if(sec) sec.innerHTML = buildCandOnboardingHTML(c);
+  const page = document.querySelector('.page.active')?.id;
+  if(page === 'page-onboarding') renderOnboarding();
+}
+
+// ── Start date check — called on page load and when visiting Onboarding ──
+function checkPendingJoinDates() {
+  const today = new Date().toISOString().split('T')[0];
+  candidates.filter(c => c.stage === 'Pending Join').forEach(c => {
+    const accepted = offers.find(o => o.candidateId === c.id && o.status === 'Accepted');
+    const startDate = accepted?.startDate;
+    if(!startDate || startDate > today) return;
+
+    // Only prompt once per candidate per day
+    const promptKey = 'tf_join_prompted_' + c.id + '_' + today;
+    if(localStorage.getItem(promptKey)) return;
+    localStorage.setItem(promptKey, '1');
+
+    const daysAgo = Math.round((new Date(today) - new Date(startDate)) / 86400000);
+    const msg = daysAgo === 0
+      ? `🎉 Today is ${c.name}'s start date! Mark them as Joined?`
+      : `📅 ${c.name}'s start date was ${daysAgo} day${daysAgo>1?'s':''} ago (${startDate}). Mark them as Joined?`;
+
+    setTimeout(() => {
+      document.getElementById('modal-title').innerHTML = `🎉 New Joiner — <span style="color:var(--green)">${escapeHtml(c.name)}</span>`;
+      document.getElementById('modal-body').innerHTML = `
+        <div style="text-align:center;padding:8px 0 16px;">
+          <div style="font-size:52px;margin-bottom:14px;">🎊</div>
+          <div style="font-size:14px;color:var(--text2);line-height:1.8;">${msg}</div>
+          <div style="margin-top:14px;">
+            <span style="display:inline-block;padding:5px 16px;border-radius:20px;background:var(--green-dim);
+              color:var(--green);border:1px solid var(--green);font-size:12px;font-weight:700;">
+              ${escapeHtml(c.name)} · ${escapeHtml(getJob(c.jobId)?.title||'–')}
+            </span>
+          </div>
+        </div>`;
+      document.getElementById('modal-footer').innerHTML = `
+        <button class="btn btn-ghost" onclick="closeModal()">Remind Me Later</button>
+        <button class="btn btn-primary" style="background:var(--green);border-color:var(--green);"
+          onclick="confirmCandidateJoined(${c.id})">✓ Mark as Joined</button>`;
+      document.getElementById('modal-overlay').classList.add('open');
+    }, 600);
+  });
+}
+
+function confirmCandidateJoined(candId) {
+  const c = getCand(candId); if(!c) return;
+  c.stage = 'Hired';
+  (c.jobApplications||[]).forEach(a => { if(a.stage === 'Pending Join') a.stage = 'Hired'; });
+  addToTimeline(c, 'Joined — Marked as Hired 🎉', 'var(--green)');
+  activities.unshift({ text:`🎉 <strong>${c.name}</strong> has officially joined as <strong>${getJob(c.jobId)?.title||''}</strong>!`, color:'var(--green)', ts:Date.now() });
+  save();
+  closeModal();
+  showToast(`${c.name} is now Hired! 🎉`);
+  reactiveUpdate(candId);
+}
+
+// ── Build onboarding HTML for candidate profile right panel ──
+function buildCandOnboardingHTML(c) {
+  if(!c) return '';
+  const onb = getCandOnboarding(c);
+  const accepted = offers.find(o => o.candidateId === c.id && o.status === 'Accepted');
+  const startDate = accepted?.startDate || '';
+  const today = new Date().toISOString().split('T')[0];
+  const daysUntil = startDate ? Math.round((new Date(startDate) - new Date(today)) / 86400000) : null;
+  const obTasks = tasks.filter(t => t._onboarding && String(t.candidateId) === String(c.id));
+  const doneTasks = obTasks.filter(t => t.status === 'Done').length;
+  const totalTasks = obTasks.length;
+  const progress = totalTasks ? Math.round(doneTasks / totalTasks * 100) : 0;
+  const docsChecked = (onb.docs||[]).filter(d=>d.checked).length;
+  const equipChecked = (onb.equipment||[]).filter(e=>e.checked).length;
+  const hasStarted = onb.startedAt && totalTasks > 0;
+
+  let html = `<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <div style="font-size:13px;font-weight:700;">🚀 Onboarding</div>
+      ${hasStarted ? `<div style="font-size:11px;color:var(--text3);">${doneTasks}/${totalTasks} tasks · ${docsChecked}/${(onb.docs||[]).length} docs · ${equipChecked}/${(onb.equipment||[]).length} equipment</div>` : '<div style="font-size:11px;color:var(--text3);">Not started yet</div>'}
+    </div>
+    <div style="display:flex;gap:6px;">
+      ${hasStarted ? `<button class="btn btn-ghost btn-sm" onclick="applyOnboardingTemplate(${c.id})">↺ Reset</button>` : `<button class="btn btn-primary btn-sm" onclick="applyOnboardingTemplate(${c.id})">🚀 Start Onboarding</button>`}
+      <button class="btn btn-ghost btn-sm" onclick="openEmailTemplates(${c.id})">✉️ Emails</button>
+    </div>
+  </div>`;
+
+  // Start date countdown
+  if(startDate) {
+    const countColor = daysUntil === null ? 'var(--text3)' : daysUntil < 0 ? 'var(--red)' : daysUntil <= 3 ? 'var(--amber)' : 'var(--green)';
+    const countText = daysUntil === null ? '–' : daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : daysUntil === 0 ? '🎉 Today!' : `${daysUntil} days to go`;
+    html += `<div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:${daysUntil!==null&&daysUntil<=0?'var(--green-dim)':'var(--bg3)'};">
+      <div style="font-size:22px;">📅</div>
+      <div style="flex:1;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);">Start Date</div>
+        <div style="font-size:14px;font-weight:800;color:${countColor};">${startDate} <span style="font-size:12px;">(${countText})</span></div>
+      </div>
+      ${daysUntil !== null && daysUntil <= 0 && c.stage === 'Pending Join' ? `<button class="btn btn-primary btn-sm" style="background:var(--green);border-color:var(--green);" onclick="confirmCandidateJoined(${c.id})">✓ Mark Joined</button>` : ''}
+    </div>`;
+  } else {
+    html += `<div style="padding:8px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--amber);background:var(--amber-dim);">⚠️ No start date set — add it in the offer to enable automatic reminders</div>`;
+  }
+
+  if(!hasStarted) {
+    html += `<div style="padding:20px 16px;text-align:center;color:var(--text3);">
+      <div style="font-size:32px;margin-bottom:8px;">🚀</div>
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">Ready to start onboarding?</div>
+      <div style="font-size:12px;margin-bottom:14px;">This will create all checklist tasks linked to this candidate in the Tasks page.</div>
+      <button class="btn btn-primary" onclick="applyOnboardingTemplate(${c.id})">Apply Onboarding Checklist</button>
+    </div>`;
+    return html;
+  }
+
+  // Progress bar
+  html += `<div style="padding:10px 16px;border-bottom:1px solid var(--border);">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:5px;">
+      <span>Overall Progress</span><span style="font-weight:700;color:${progress===100?'var(--green)':'var(--text)'};">${progress}%</span>
+    </div>
+    <div style="height:7px;background:var(--bg4);border-radius:4px;overflow:hidden;">
+      <div style="height:100%;width:${progress}%;background:${progress===100?'var(--green)':'var(--accent)'};border-radius:4px;transition:width 0.5s;"></div>
+    </div>
+  </div>`;
+
+  // Tasks by category
+  const byCategory = {};
+  obTasks.forEach(t => {
+    const cat = t._obCategory || 'General';
+    if(!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(t);
+  });
+
+  Object.entries(byCategory).forEach(([cat, catTasks]) => {
+    const catDone = catTasks.filter(t=>t.status==='Done').length;
+    html += `<div style="border-bottom:1px solid var(--border);">
+      <div style="padding:8px 16px;background:var(--bg3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);display:flex;justify-content:space-between;">
+        <span>${escapeHtml(cat)}</span>
+        <span>${catDone}/${catTasks.length}</span>
+      </div>`;
+    catTasks.forEach(t => {
+      const done = t.status === 'Done';
+      const overdue = t.dueDate && !done && t.dueDate < today;
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;"
+        onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+        <div onclick="toggleOnboardingTask('${t.id}',${c.id})"
+          style="width:17px;height:17px;border-radius:4px;flex-shrink:0;cursor:pointer;
+          border:2px solid ${done?'var(--green)':'var(--border2)'};
+          background:${done?'var(--green)':'transparent'};
+          display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;">
+          ${done?'✓':''}
+        </div>
+        <div style="flex:1;min-width:0;" onclick="openTaskDetail('${t.id}')">
+          <div style="font-size:12.5px;font-weight:500;${done?'text-decoration:line-through;color:var(--text3);':''}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(t.title)}</div>
+          <div style="display:flex;gap:6px;margin-top:2px;flex-wrap:wrap;">
+            ${t._obAssignTo?`<span style="font-size:10px;background:var(--bg4);border-radius:3px;padding:1px 5px;color:var(--text3);">${t._obAssignTo}</span>`:''}
+            ${t.dueDate?`<span style="font-size:10px;color:${overdue?'var(--red)':'var(--text3)'};">${overdue?'⚠ ':''}📅 ${new Date(t.dueDate+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short'})}</span>`:''}
+          </div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+
+  // Documents checklist
+  if((onb.docs||[]).length) {
+    const dd = onb.docs.filter(d=>d.checked).length;
+    html += `<div style="border-bottom:1px solid var(--border);">
+      <div style="padding:8px 16px;background:var(--bg3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);display:flex;justify-content:space-between;">
+        <span>📁 Documents</span><span>${dd}/${onb.docs.length}</span>
+      </div>`;
+    onb.docs.forEach((doc, di) => {
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:7px 16px;border-bottom:1px solid var(--border);">
+        <div onclick="toggleOnboardingDoc(${c.id},${di})"
+          style="width:16px;height:16px;border-radius:3px;flex-shrink:0;cursor:pointer;
+          border:2px solid ${doc.checked?'var(--green)':'var(--border2)'};
+          background:${doc.checked?'var(--green)':'transparent'};
+          display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;">
+          ${doc.checked?'✓':''}
+        </div>
+        <span style="font-size:12.5px;${doc.checked?'text-decoration:line-through;color:var(--text3);':''}">${escapeHtml(doc.label)}</span>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // Equipment checklist
+  if((onb.equipment||[]).length) {
+    const eq = onb.equipment.filter(e=>e.checked).length;
+    html += `<div>
+      <div style="padding:8px 16px;background:var(--bg3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);display:flex;justify-content:space-between;">
+        <span>💻 Equipment</span><span>${eq}/${onb.equipment.length}</span>
+      </div>`;
+    onb.equipment.forEach((item, ei) => {
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:7px 16px;border-bottom:1px solid var(--border);">
+        <div onclick="toggleOnboardingEquip(${c.id},${ei})"
+          style="width:16px;height:16px;border-radius:3px;flex-shrink:0;cursor:pointer;
+          border:2px solid ${item.checked?'var(--green)':'var(--border2)'};
+          background:${item.checked?'var(--green)':'transparent'};
+          display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;">
+          ${item.checked?'✓':''}
+        </div>
+        <span style="font-size:12.5px;${item.checked?'text-decoration:line-through;color:var(--text3);':''}">${escapeHtml(item.label)}</span>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  return html;
+}
+
+// ── Main Onboarding page render ──
+function renderOnboarding() {
+  const el = document.getElementById('onboarding-content');
+  if(!el) return;
+
+  // Populate job filter
+  const jf = document.getElementById('onboarding-filter-job');
+  if(jf && jf.options.length <= 1) {
+    jobs.forEach(j => {
+      const o = document.createElement('option');
+      o.value = j.id; o.textContent = j.title; jf.appendChild(o);
+    });
+  }
+
+  const statusF = document.getElementById('onboarding-filter-status')?.value || '';
+  const jobF = document.getElementById('onboarding-filter-job')?.value || '';
+  const today = new Date().toISOString().split('T')[0];
+
+  let list = candidates.filter(c => c.stage === 'Pending Join');
+  if(jobF) list = list.filter(c => String(c.jobId) === String(jobF));
+  if(statusF === 'not_started') list = list.filter(c => !c.onboarding?.startedAt);
+  if(statusF === 'in_progress') list = list.filter(c => c.onboarding?.startedAt);
+  if(statusF === 'overdue') list = list.filter(c => {
+    const obTasks = tasks.filter(t => t._onboarding && String(t.candidateId)===String(c.id) && t.status!=='Done');
+    return obTasks.some(t => t.dueDate && t.dueDate < today);
+  });
+
+  if(!list.length) {
+    el.innerHTML = `<div style="text-align:center;padding:80px 24px;color:var(--text3);">
+      <div style="font-size:52px;margin-bottom:16px;">🚀</div>
+      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;">No candidates pending onboarding</div>
+      <div style="font-size:13px;margin-bottom:20px;">Candidates move here automatically when their offer is accepted and they reach <strong>Pending Join</strong> stage.</div>
+      <button class="btn btn-ghost" onclick="showPage('candidates',null)">← View Candidates</button>
+    </div>`;
+    return;
+  }
+
+  // Summary stats bar
+  const totalPending = candidates.filter(c=>c.stage==='Pending Join').length;
+  const startedCount = list.filter(c=>c.onboarding?.startedAt).length;
+  const joiningSoon = list.filter(c => {
+    const acc = offers.find(o=>o.candidateId===c.id&&o.status==='Accepted');
+    const sd = acc?.startDate;
+    if(!sd) return false;
+    const d = Math.round((new Date(sd)-new Date(today))/86400000);
+    return d >= 0 && d <= 7;
+  }).length;
+
+  el.innerHTML = `
+    <!-- Stats bar -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;">
+      ${[
+        ['Pending Join',totalPending,'var(--purple)','🚀'],
+        ['Onboarding Started',startedCount,'var(--accent)','✅'],
+        ['Joining This Week',joiningSoon,'var(--amber)','📅'],
+        ['Awaiting Start',list.filter(c=>!c.onboarding?.startedAt).length,'var(--text3)','⏳'],
+      ].map(([label,val,color,icon])=>`
+        <div class="stat-card" style="padding:14px 16px;">
+          <div style="font-size:22px;margin-bottom:6px;">${icon}</div>
+          <div style="font-size:22px;font-weight:800;color:${color};font-family:'JetBrains Mono';">${val}</div>
+          <div style="font-size:11px;color:var(--text3);font-weight:600;margin-top:3px;">${label}</div>
+        </div>`).join('')}
+    </div>
+
+    <!-- Candidate cards -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      ${list.map(c => {
+        const job = getJob(c.jobId);
+        const accepted = offers.find(o=>o.candidateId===c.id&&o.status==='Accepted');
+        const startDate = accepted?.startDate || '';
+        const daysUntil = startDate ? Math.round((new Date(startDate)-new Date(today))/86400000) : null;
+        const onb = getCandOnboarding(c);
+        const obTasks = tasks.filter(t=>t._onboarding&&String(t.candidateId)===String(c.id));
+        const doneTasks = obTasks.filter(t=>t.status==='Done').length;
+        const overdueTasks = obTasks.filter(t=>t.status!=='Done'&&t.dueDate&&t.dueDate<today).length;
+        const progress = obTasks.length ? Math.round(doneTasks/obTasks.length*100) : 0;
+        const hasStarted = onb.startedAt && obTasks.length > 0;
+        const countColor = daysUntil===null?'var(--text3)':daysUntil<0?'var(--red)':daysUntil<=3?'var(--amber)':'var(--green)';
+        const docsChecked = (onb.docs||[]).filter(d=>d.checked).length;
+        const equipChecked = (onb.equipment||[]).filter(e=>e.checked).length;
+
+        return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;">
+          <!-- Card header -->
+          <div style="padding:16px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);">
+            <div style="width:44px;height:44px;border-radius:50%;background:${c.color}33;color:${c.color};
+              display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;
+              cursor:pointer;" onclick="openCandProfile(${c.id})">
+              ${c.initials}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span style="font-size:15px;font-weight:700;cursor:pointer;color:var(--accent);"
+                  onclick="openCandProfile(${c.id})">${escapeHtml(c.name)}</span>
+                ${overdueTasks?`<span class="badge badge-red" style="font-size:10px;">⚠ ${overdueTasks} overdue</span>`:''}
+                ${daysUntil===0?'<span class="badge badge-green" style="font-size:10px;">🎉 Joining Today!</span>':''}
+                ${daysUntil!==null&&daysUntil<0?'<span class="badge badge-red" style="font-size:10px;">Start date passed</span>':''}
+              </div>
+              <div style="font-size:12px;color:var(--text3);margin-top:2px;">
+                ${job?escapeHtml(job.title)+' · ':''}${c.email||''}
+              </div>
+            </div>
+            <!-- Start date pill -->
+            <div style="text-align:right;flex-shrink:0;">
+              ${startDate?`<div style="font-size:12px;font-weight:700;color:${countColor};">
+                📅 ${startDate}
+              </div>
+              <div style="font-size:11px;color:${countColor};">
+                ${daysUntil===null?'–':daysUntil===0?'Today!':daysUntil<0?Math.abs(daysUntil)+'d ago':daysUntil+'d to go'}
+              </div>`:'<div style="font-size:11px;color:var(--amber);">No start date</div>'}
+            </div>
+            <!-- Actions -->
+            <div style="display:flex;gap:6px;flex-shrink:0;">
+              ${!hasStarted?`<button class="btn btn-primary btn-sm" onclick="applyOnboardingTemplate(${c.id})">🚀 Start</button>`:''}
+              <button class="btn btn-ghost btn-sm" onclick="openCandProfile(${c.id})">View →</button>
+              <button class="btn btn-ghost btn-sm" onclick="openEmailTemplates(${c.id})">✉️</button>
+              ${daysUntil!==null&&daysUntil<=0&&c.stage==='Pending Join'?`<button class="btn btn-primary btn-sm" style="background:var(--green);border-color:var(--green);" onclick="confirmCandidateJoined(${c.id})">✓ Joined</button>`:''}
+            </div>
+          </div>
+
+          ${hasStarted?`
+          <!-- Progress & stats row -->
+          <div style="padding:12px 20px;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:14px;align-items:center;border-bottom:1px solid var(--border);background:var(--bg3);">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:4px;">
+                <span>Tasks</span><span style="font-weight:700;color:${progress===100?'var(--green)':'var(--text)'};">${doneTasks}/${obTasks.length} (${progress}%)</span>
+              </div>
+              <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;">
+                <div style="height:100%;width:${progress}%;background:${progress===100?'var(--green)':'var(--accent)'};border-radius:3px;transition:width 0.5s;"></div>
+              </div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:16px;font-weight:800;color:var(--accent);">${docsChecked}/${(onb.docs||[]).length}</div>
+              <div style="font-size:10px;color:var(--text3);">📁 Docs</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:16px;font-weight:800;color:var(--purple);">${equipChecked}/${(onb.equipment||[]).length}</div>
+              <div style="font-size:10px;color:var(--text3);">💻 Equipment</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:16px;font-weight:800;color:${overdueTasks?'var(--red)':'var(--green)'};">${overdueTasks}</div>
+              <div style="font-size:10px;color:var(--text3);">⚠ Overdue</div>
+            </div>
+          </div>
+
+          <!-- Task list preview (next 4 open tasks) -->
+          <div style="padding:10px 20px 12px;">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);margin-bottom:8px;">Next Up</div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              ${obTasks.filter(t=>t.status!=='Done').slice(0,4).map(t=>{
+                const od = t.dueDate && t.dueDate < today;
+                return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg3);border-radius:7px;cursor:pointer;"
+                  onclick="toggleOnboardingTask('${t.id}',${c.id})"
+                  onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='var(--bg3)'">
+                  <div style="width:15px;height:15px;border-radius:3px;border:2px solid var(--border2);flex-shrink:0;"></div>
+                  <span style="font-size:12.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(t.title)}</span>
+                  ${t._obAssignTo?`<span style="font-size:10px;color:var(--text3);background:var(--bg4);border-radius:3px;padding:1px 5px;">${t._obAssignTo}</span>`:''}
+                  ${t.dueDate?`<span style="font-size:10px;color:${od?'var(--red)':'var(--text3)'};">${od?'⚠ ':''}${new Date(t.dueDate+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short'})}</span>`:''}
+                </div>`;
+              }).join('')}
+              ${obTasks.filter(t=>t.status!=='Done').length>4?`<div style="font-size:11px;color:var(--text3);text-align:center;padding:4px 0;">+${obTasks.filter(t=>t.status!=='Done').length-4} more — <span style="color:var(--accent);cursor:pointer;" onclick="openCandProfile(${c.id})">view profile</span></div>`:''}
+              ${obTasks.filter(t=>t.status!=='Done').length===0?'<div style="font-size:12px;color:var(--green);text-align:center;padding:6px 0;">✓ All tasks complete!</div>':''}
+            </div>
+          </div>`:''}
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── Auto-check joining dates on app load ──
+function initOnboarding() {
+  // Check dates after a short delay so UI is ready
+  setTimeout(checkPendingJoinDates, 2000);
+}
+
+// ===================== END ONBOARDING SYSTEM =====================
+
 function showToast(msg) {
   const t = document.createElement('div');
   t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);animation:fadeIn 0.2s ease';
@@ -9478,6 +11343,7 @@ initSidebarState();
 initMobileNav();
 updateSidebarBadges();
 initInteractions();
+initOnboarding();
 
 // Refresh timestamps every 60 seconds so "2m ago" etc stay accurate
 setInterval(() => {
