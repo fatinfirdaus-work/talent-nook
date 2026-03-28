@@ -1301,7 +1301,6 @@
           <div class="stat-val" style="color:var(--green)">—</div>
           <div class="stat-change">0/0 offers accepted</div>
         </div>
-        <div 
         <div class="stat-card">
           <div class="stat-label">Top Source</div>
           <div class="stat-val" style="color:var(--purple)">—</div>
@@ -2959,6 +2958,23 @@ function renderAnalytics() {
   const inInterview = stageCts['Interview'] || 0;
   const inScreening = stageCts['Screening'] || 0;
   const rejected   = stageCts['Rejected'] || 0;
+  const applied    = stageCts['Applied'] || 0;
+
+  // ── SOURCE data — build here so it's available everywhere in this function ──
+  const sourceCts = {};
+  candidates.forEach(c => { const s = c.source||'Other'; sourceCts[s] = (sourceCts[s]||0)+1; });
+  const sourceEntries = Object.entries(sourceCts).sort((a,b)=>b[1]-a[1]);
+  const maxSrc = sourceEntries.length ? sourceEntries[0][1] : 1;
+  const sourceColorPalette = ['var(--accent)','var(--purple)','var(--green)','var(--amber)','var(--pink)','var(--red)','#06b6d4','#84cc16'];
+  const sourceColors = {};
+  sourceEntries.forEach(([name],i) => { sourceColors[name] = sourceColorPalette[i % sourceColorPalette.length]; });
+
+  // ── Conversion rates — safe division ──
+  const safe = (n,d) => d > 0 ? Math.round(n/d*100) : 0;
+  const a2s = safe(inScreening, applied + inScreening + inInterview + offered + stageCts['Pending Join']||0 + stageCts['Hired']||0 + rejected);
+  const s2i = safe(inInterview, inScreening + inInterview);
+  const i2o = safe(offered, inInterview + offered);
+  const o2h = safe(hired, offered + hired);
 
   // Time to hire: avg days from applied → hired (candidates with stage=Hired)
   const hiredCands = candidates.filter(c=>c.stage==='Hired'&&c.applied);
@@ -5072,7 +5088,7 @@ function showPage(name, navEl, pushHistory=true) {
     titleEl.style.opacity = '0';
     const titles = {dashboard:'Dashboard',jobs:'Jobs',projects:'Projects',candidates:'Candidates',pipeline:'Pipeline',
       interviews:'Interviews',offers:'Offers',onboarding:'Onboarding',analytics:'Analytics',reports:'Reports',inbox:'Inbox',settings:'Settings',jobdetail:'Job Detail'};
-    setTimeout(()=>{ titleEl.textContent = titles[name]||name; titleEl.style.opacity='1'; }, 100);
+    setTimeout(()=>{ titleEl.textContent = titles[name]||name; titleEl.style.opacity='1'; document.title = (titles[name]||name) + ' — TalentFlow'; }, 100);
   }
 
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -5177,6 +5193,8 @@ function openCandProfile(id, pushHistory=true, fromJobId=null) {
     if(n.textContent.trim().startsWith('Candidates')) n.classList.add('active');
   });
   document.getElementById('topbar-title').textContent = c.name;
+  // Set browser tab title to candidate name
+  document.title = c.name + ' — TalentFlow';
   closeDetail();
   renderCandProfileContent(id, fromJobId);
 }
@@ -5187,6 +5205,99 @@ function openCandInNewTab(id) {
 }
 
 // ===================== TEAM NOTES (right panel, separate from interview feedback) =====================
+
+// ── Accordion section helper for right panel ──
+function buildAccordionSection(id, title, subtitle, defaultOpen, content) {
+  const isOpen = defaultOpen;
+  return '<div style="border-bottom:1px solid var(--border);" id="' + id + '-wrapper">' +
+    '<div onclick="toggleAccordion(\'' + id + '\')" ' +
+    'style="padding:11px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--bg2);transition:background 0.12s;"' +
+    ' onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'var(--bg2)\'">' +
+    '<div style="display:flex;align-items:center;gap:8px;">' +
+    '<span style="font-size:13px;font-weight:700;">' + title + '</span>' +
+    '<span style="font-size:11px;color:var(--text3);">' + subtitle + '</span>' +
+    '</div>' +
+    '<span id="' + id + '-arrow" style="font-size:11px;color:var(--text3);transition:transform 0.2s;transform:' + (isOpen ? 'rotate(180deg)' : 'rotate(0deg)') + ';">▼</span>' +
+    '</div>' +
+    '<div id="' + id + '-body" style="' + (isOpen ? '' : 'display:none;') + '">' +
+    content +
+    '</div>' +
+    '</div>';
+}
+
+function toggleAccordion(id) {
+  const body = document.getElementById(id + '-body');
+  const arrow = document.getElementById(id + '-arrow');
+  if(!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  if(arrow) arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+// ── Compact stage actions: primary button + secondary row (Feishu style) ──
+function buildStageActionsCompact(c, fromJobId) {
+  const id = c.id;
+  const jobId = fromJobId || c.jobId;
+  const stage = fromJobId ? getCandStageForJob(c, fromJobId) : (c.stage || 'Applied');
+
+  let primary = '';
+  let secondaryBtns = [];
+
+  if(stage === 'Applied' || stage === 'Screening') {
+    primary = `<button class="btn btn-primary" style="flex:1;" onclick="openScheduleInterview(${id})">📅 Schedule Interview</button>`;
+    secondaryBtns = [
+      `<button class="btn btn-ghost btn-sm" onclick="openMoveStage(${id},${jobId||'null'})">Move Stage ↕</button>`,
+      `<button class="btn btn-ghost btn-sm" onclick="openEmailTemplates(${id})">✉️ Email</button>`,
+      `<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="rejectCandidate(${id})">✕ Reject</button>`,
+      `<button class="btn btn-ghost btn-sm" onclick="shareCandidate(${id})">↗ Share</button>`,
+    ];
+  } else if(stage === 'Interview') {
+    primary = `<button class="btn btn-primary" style="flex:1;" onclick="openScheduleInterview(${id})">📅 Schedule Interview</button>`;
+    secondaryBtns = [
+      `<button class="btn btn-ghost btn-sm" onclick="openAddFeedbackRound(${id},'Interview','')">📝 Add Feedback</button>`,
+      `<button class="btn btn-ghost btn-sm" onclick="quickMoveStageAndRefresh(${id},'Offer')">→ Move to Offer</button>`,
+      `<button class="btn btn-ghost btn-sm" onclick="openMoveStage(${id},${jobId||'null'})">Move Stage ↕</button>`,
+      `<button class="btn btn-ghost btn-sm" onclick="openEmailTemplates(${id})">✉️ Email</button>`,
+      `<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="rejectCandidate(${id})">✕ Reject</button>`,
+    ];
+  } else if(stage === 'Offer') {
+    primary = `<button class="btn btn-primary" style="flex:1;" onclick="openCreateOffer(${id})">📄 Create / Edit Offer</button>`;
+    secondaryBtns = [
+      `<button class="btn btn-ghost btn-sm" onclick="quickMoveStageAndRefresh(${id},'Pending Join')">→ Pending Join</button>`,
+      `<button class="btn btn-ghost btn-sm" onclick="openEmailTemplates(${id})">✉️ Email</button>`,
+      `<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="rejectCandidate(${id})">✕ Reject</button>`,
+    ];
+  } else if(stage === 'Pending Join') {
+    primary = `<button class="btn btn-primary" style="flex:1;background:var(--green);border-color:var(--green);" onclick="confirmCandidateJoined(${id})">✓ Mark as Joined</button>`;
+    secondaryBtns = [
+      `<button class="btn btn-ghost btn-sm" onclick="openCreateOffer(${id})">📄 View Offer</button>`,
+      `<button class="btn btn-ghost btn-sm" onclick="openEmailTemplates(${id})">✉️ Email</button>`,
+    ];
+  } else if(stage === 'Hired') {
+    primary = `<span style="font-size:13px;font-weight:700;color:var(--green);padding:7px 0;display:inline-block;">🎉 Hired & Joined</span>`;
+    secondaryBtns = [
+      `<button class="btn btn-ghost btn-sm" onclick="shareCandidate(${id})">↗ Share Profile</button>`,
+      `<button class="btn btn-ghost btn-sm" onclick="openEmailTemplates(${id})">✉️ Email</button>`,
+    ];
+  } else if(stage === 'Rejected') {
+    primary = `<button class="btn btn-ghost" style="flex:1;" onclick="quickMoveStageAndRefresh(${id},'Applied')">↩ Re-consider</button>`;
+    secondaryBtns = [
+      `<button class="btn btn-ghost btn-sm" onclick="openEmailTemplates(${id})">✉️ Email</button>`,
+      `<button class="btn btn-ghost btn-sm" onclick="openMoveStage(${id},${jobId||'null'})">Move Stage ↕</button>`,
+    ];
+  } else {
+    primary = `<button class="btn btn-primary" style="flex:1;" onclick="openScheduleInterview(${id})">📅 Schedule</button>`;
+    secondaryBtns = [
+      `<button class="btn btn-ghost btn-sm" onclick="openAddFeedbackRound(${id},'${stage}','')">📝 Feedback</button>`,
+      `<button class="btn btn-ghost btn-sm" onclick="openMoveStage(${id},${jobId||'null'})">Move Stage ↕</button>`,
+      `<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="rejectCandidate(${id})">✕ Reject</button>`,
+    ];
+  }
+
+  return '<div style="display:flex;gap:6px;margin-bottom:8px;">' + primary + '</div>' +
+    '<div style="display:flex;gap:5px;flex-wrap:wrap;">' + secondaryBtns.join('') + '</div>';
+}
+
 function renderTeamNotesList(c) {
   const notes = getNotes(c);
   if(!notes.length) return '<div style="text-align:center;padding:16px;color:var(--text3);font-size:12px;background:var(--bg3);border-radius:8px;">No team notes yet — click + Add Note</div>';
@@ -5262,21 +5373,20 @@ function refreshRightPanel(id) {
   const allInterviews = (c.interviews||[]).slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
   const allFeedback = (c.feedback||[]).slice().sort((a,b)=>new Date(b.createdAt||b.date||0)-new Date(a.createdAt||a.date||0));
 
-  // Refresh stage badge + action buttons at top of sidebar
+  // Refresh action buttons (compact style)
   const actionBtns = document.getElementById('cp-action-buttons');
-  if(actionBtns) actionBtns.innerHTML = buildStageActions(c);
-  // Update stage badge
-  const stageBadgeEl = actionBtns?.previousElementSibling?.querySelector('.badge');
-  if(stageBadgeEl) {
-    stageBadgeEl.textContent = c.stage;
-    stageBadgeEl.className = 'badge ' + (stageBadge[c.stage]||'badge-gray') + ' font-size:12px;padding:4px 10px;';
+  if(actionBtns) actionBtns.innerHTML = buildStageActionsCompact(c, null);
+
+  // Refresh tasks section + accordion subtitle
+  const tasksSection = document.getElementById('cp-tasks-section');
+  if(tasksSection) {
+    tasksSection.innerHTML = buildCandTasksHTML(c);
+    const ct = tasks.filter(t=>String(t.candidateId)===String(c.id));
+    const sub = document.querySelector('#cp-accordion-tasks-wrapper .accordion-subtitle');
+    if(sub) sub.textContent = ct.length ? ct.filter(t=>t.status!=='Done').length+' open' : 'None';
   }
 
-  // Refresh tasks section
-  const tasksSection = document.getElementById('cp-tasks-section');
-  if(tasksSection) tasksSection.innerHTML = buildCandTasksHTML(c);
-
-  // Refresh offers section
+  // Refresh offers section + accordion subtitle
   const offersSection = document.getElementById('cp-offers-section');
   if(offersSection) offersSection.innerHTML = buildOffersHTML(c);
 
@@ -5291,9 +5401,12 @@ function refreshRightPanel(id) {
   // Refresh team notes
   refreshTeamNotes(id);
 
-  // Update stage tracker
-  const stageTracker = document.getElementById('cp-stage-tracker');
-  if(stageTracker) stageTracker.innerHTML = buildStageTrackerHTML(c);
+  // Update stage tracker — rebuild the right panel header
+  const stageWrapper = document.getElementById('cp-right-panel');
+  if(stageWrapper) {
+    const trackerEl = stageWrapper.querySelector('.cp-stage-tracker-inner');
+    if(trackerEl) trackerEl.innerHTML = buildStageTrackerHTML(c, c.jobId);
+  }
 
   // Update action history
   const history = document.getElementById('cp-history-content');
@@ -5612,60 +5725,60 @@ function renderCandProfileContent(id, fromJobId=null) {
 
   el.innerHTML =
     // ── SLIM TOPBAR ──
-    '<div style="padding:8px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg2);flex-shrink:0;">' +
-    '<span style="cursor:pointer;color:var(--text3);font-size:13px;" onclick="showPage(\'candidates\',null)">← Candidates</span>' +
-    '<span style="color:var(--border2)">›</span>' +
-    '<span style="font-size:13px;color:var(--accent);cursor:pointer" onclick="showPage(\'jobs\',null);setTimeout(()=>openJobDetail(' + c.jobId + '),100)">' + (job?job.title:'Job') + '</span>' +
-    '<span style="color:var(--border2)">›</span>' +
-    '<span style="font-size:13px;font-weight:600">' + c.name + '</span>' +
+    '<div style="padding:8px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg2);flex-shrink:0;">' +
+    '<span style="cursor:pointer;color:var(--text3);font-size:13px;" onclick="showPage(\'candidates\',null)">← Return</span>' +
+    '<span style="color:var(--border2);margin:0 2px;">|</span>' +
+    '<span style="font-size:13px;font-weight:600;color:var(--text);">' + escapeHtml(c.name) + '</span>' +
+    (c.phone ? '<span style="color:var(--border2);margin:0 4px;">·</span><a href="tel:' + c.phone + '" style="font-size:12.5px;color:var(--text3);">📞 ' + escapeHtml(c.phone) + '</a>' : '') +
+    (c.email ? '<a href="mailto:' + c.email + '" style="font-size:12.5px;color:var(--text3);margin-left:4px;">✉️ ' + escapeHtml(c.email) + '</a>' : '') +
     '<div style="display:flex;align-items:center;gap:3px;margin-left:8px;">' +
-    (prevCand ? '<button class="btn btn-ghost btn-sm" onclick="openCandProfile('+prevCand.id+',true,'+(fromJobId||'null')+')" title="'+escapeHtml(prevCand.name)+'">‹ Prev</button>' : '<button class="btn btn-ghost btn-sm" disabled style="opacity:0.3;">‹ Prev</button>') +
+    (prevCand ? '<button class="btn btn-ghost btn-sm" style="padding:3px 9px;" onclick="openCandProfile('+prevCand.id+',true,'+(fromJobId||'null')+')" title="'+escapeHtml(prevCand.name)+'">‹ Prev</button>' : '<button class="btn btn-ghost btn-sm" style="padding:3px 9px;opacity:0.3;" disabled>‹ Prev</button>') +
     '<span style="font-size:11px;color:var(--text3);padding:0 4px;">' + (navIdx+1) + '/' + navList.length + '</span>' +
-    (nextCand ? '<button class="btn btn-ghost btn-sm" onclick="openCandProfile('+nextCand.id+',true,'+(fromJobId||'null')+')" title="'+escapeHtml(nextCand.name)+'">Next ›</button>' : '<button class="btn btn-ghost btn-sm" disabled style="opacity:0.3;">Next ›</button>') +
+    (nextCand ? '<button class="btn btn-ghost btn-sm" style="padding:3px 9px;" onclick="openCandProfile('+nextCand.id+',true,'+(fromJobId||'null')+')" title="'+escapeHtml(nextCand.name)+'">Next ›</button>' : '<button class="btn btn-ghost btn-sm" style="padding:3px 9px;opacity:0.3;" disabled>Next ›</button>') +
     '</div>' +
-    '<div style="margin-left:auto;display:flex;gap:6px;">' +
-    '<button class="btn btn-ghost btn-sm" onclick="openEditCandidate(' + c.id + ')">✏️ Edit</button>' +
-    '<button class="btn btn-ghost btn-sm" onclick="openManageDocs(' + c.id + ')">📎 Docs' + (((c.documents||[]).length > 0) ? ' ('+c.documents.length+')' : '') + '</button>' +
-    '<button class="btn btn-primary btn-sm" onclick="openEmailTemplates(' + c.id + ')">✉️ Email</button>' +
-    '<button class="btn btn-ghost btn-sm" onclick="openCandInNewTab(' + c.id + ')">↗ New Tab</button>' +
-    '<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteCandidate(' + c.id + ')">🗑</button>' +
+    '<div style="margin-left:auto;display:flex;gap:5px;">' +
+    '<button class="btn btn-ghost btn-sm" onclick="openEditCandidate(' + c.id + ')" title="Edit">✏️ Edit</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="openManageDocs(' + c.id + ')" title="Documents">📎 Docs' + ((c.documents||[]).length > 0 ? ' ('+c.documents.length+')' : '') + '</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="openCandInNewTab(' + c.id + ')" title="Open in new browser tab">↗ New Tab</button>' +
+    '<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteCandidate(' + c.id + ')" title="Delete">🗑</button>' +
     '</div></div>' +
 
-    // ── MAIN LAYOUT: resizable left | right panels ──
-    '<div id="cp-layout" class="cp-layout" style="grid-template-columns:1fr 420px;position:relative;">' +
-    '<style>#cp-divider{position:absolute;top:0;bottom:0;width:6px;cursor:col-resize;z-index:10;background:transparent;transition:background 0.15s;}#cp-divider:hover,#cp-divider.dragging{background:var(--accent)40;}</style>' +
+    // ── MAIN LAYOUT: 65/35 split ──
+    '<div id="cp-layout" class="cp-layout" style="grid-template-columns:1fr 360px;position:relative;flex:1;overflow:hidden;">' +
+    '<style>#cp-divider{position:absolute;top:0;bottom:0;width:5px;cursor:col-resize;z-index:10;background:transparent;transition:background 0.15s;}#cp-divider:hover,#cp-divider.dragging{background:var(--accent);opacity:0.3;}</style>' +
 
-    // ── LEFT: candidate info + resume tabs ──
+    // ── LEFT PANEL: name header + tabs + resume ──
     '<div id="cp-left-panel" style="height:100%;overflow:hidden;border-right:1px solid var(--border);display:flex;flex-direction:column;">' +
 
-    // Candidate header card
-    '<div style="padding:20px 24px;border-bottom:1px solid var(--border);flex-shrink:0;">' +
-    '<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:12px;">' +
-    '<div style="width:64px;height:64px;border-radius:50%;background:' + c.color + '33;color:' + c.color + ';display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;flex-shrink:0;">' + c.initials + '</div>' +
-    '<div style="flex:1;">' +
-    '<div style="font-size:19px;font-weight:800;letter-spacing:-0.3px;margin-bottom:6px;">' + escapeHtml(c.name) + ' <span style="font-size:14px;font-weight:400;">' + stars + '</span></div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--text3);">' +
-    (c.phone?'<a href="tel:' + c.phone + '" style="color:var(--accent);">📞 ' + escapeHtml(c.phone) + '</a>':'') +
-    (c.email?'<a href="mailto:' + c.email + '" style="color:var(--accent);">✉️ ' + escapeHtml(c.email) + '</a>':'') +
-    (c.currentTitle?'<span>🏢 ' + escapeHtml(c.currentTitle) + '</span>':'') +
-    (c.exp?'<span>💼 ' + escapeHtml(c.exp) + '</span>':'') +
-    (c.location?'<span>📍 ' + escapeHtml(c.location) + '</span>':'') +
-    (c.applied?'<span>📅 Applied ' + c.applied + '</span>':'') +
-    '</div></div></div>' +
-    '<div style="display:flex;flex-wrap:wrap;gap:5px;">' +
-    (c.source?'<span class="badge badge-amber">' + escapeHtml(c.source) + '</span>':'') +
-    (c.hasResume?'<span class="badge badge-gray">📄 Resume</span>':'') +
+    // Compact candidate header — Feishu style
+    '<div style="padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;">' +
+    '<div style="display:flex;align-items:flex-start;gap:14px;">' +
+    '<div style="width:52px;height:52px;border-radius:50%;background:' + c.color + '33;color:' + c.color + ';display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex-shrink:0;">' + c.initials + '</div>' +
+    '<div style="flex:1;min-width:0;">' +
+    // Name + stars inline
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;">' +
+    '<span style="font-size:17px;font-weight:800;letter-spacing:-0.3px;">' + escapeHtml(c.name) + '</span>' +
+    '<span>' + stars + '</span>' +
+    (c.source ? '<span class="badge badge-amber" style="font-size:10px;">' + escapeHtml(c.source) + '</span>' : '') +
+    (c.hasResume ? '<span class="badge badge-gray" style="font-size:10px;">📄 Resume</span>' : '') +
     '</div>' +
-    '</div>' + // end header card
+    // Contact info row — compact
+    '<div style="display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--text3);">' +
+    (c.currentTitle ? '<span style="color:var(--text2);font-weight:500;">🏢 ' + escapeHtml(c.currentTitle) + '</span>' : '') +
+    (c.exp ? '<span>💼 ' + escapeHtml(c.exp) + '</span>' : '') +
+    (c.location ? '<span>📍 ' + escapeHtml(c.location) + '</span>' : '') +
+    (c.applied ? '<span>Applied ' + c.applied + '</span>' : '') +
+    '</div>' +
+    '</div></div>' +
+    '</div>' + // end header
 
-    // Left tabs
-    '<div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;">' +
-    '<div class="cp-tab active" onclick="switchLeftTab(this,\'lt-resume\')">Resume ' + (c.hasResume?'(1)':'(0)') + '</div>' +
+    // Left tabs — clean underline style
+    '<div style="display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;overflow-x:auto;">' +
+    '<div class="cp-tab active" onclick="switchLeftTab(this,\'lt-resume\')">Resume Files ' + (c.hasResume ? '('+(c.documents||[{x:1}]).length+')' : '(0)') + '</div>' +
     '<div class="cp-tab" onclick="switchLeftTab(this,\'lt-details\')">Details</div>' +
     '<div class="cp-tab" onclick="switchLeftTab(this,\'lt-extra\')">Additional Info</div>' +
     '<div class="cp-tab" onclick="switchLeftTab(this,\'lt-history\')">Action History</div>' +
     '</div>' +
-    // Tab contents
     '<div id="lt-resume" class="cp-tab-content active">' + resumeTab + '</div>' +
     '<div id="lt-details" class="cp-tab-content" style="padding:20px 24px;">' + detailsTab + '</div>' +
     '<div id="lt-extra" class="cp-tab-content" style="padding:20px 24px;">' +
@@ -5673,46 +5786,79 @@ function renderCandProfileContent(id, fromJobId=null) {
     '<div id="lt-history" class="cp-tab-content" style="padding:0;">' + historyTab + '</div>' +
     '</div>' + // end left panel
 
-    // ── RIGHT: stage/actions + job application + interviews + notes ──
-    '<div style="overflow-y:auto;background:var(--bg3);display:flex;flex-direction:column;gap:0;">' +
+    // ── RIGHT PANEL: job context → stage → actions → sections ──
+    '<div id="cp-right-panel" style="overflow-y:auto;background:var(--bg2);display:flex;flex-direction:column;">' +
 
-    // ── STAGE & ACTIONS — top of sidebar ──
-    '<div style="background:var(--bg2);padding:12px 16px;border-bottom:1px solid var(--border);">' +
-    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">' +
-    '<span class="badge ' + (stageBadge[c.stage]||'badge-gray') + '" style="font-size:12px;padding:4px 10px;">' + c.stage + '</span>' +
-    (c.rejectionReasonLabel ? '<span class="badge badge-red" style="font-size:10px;">🚫 ' + escapeHtml(c.rejectionReasonLabel) + '</span>' : '') +
-    '</div>' +
-    '<div id="cp-action-buttons" style="display:flex;gap:6px;flex-wrap:wrap;">' + buildStageActions(c) + '</div>' +
+    // Job context + stage badge — top of right panel
+    '<div style="padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg2);">' +
+    (() => {
+      const apps = getCandJobs(c);
+      const displayJobId = fromJobId || c.jobId;
+      const displayJob = getJob(displayJobId);
+      const displayStage = fromJobId ? getCandStageForJob(c, fromJobId) : c.stage;
+      const stageColor = stageColors[displayStage] || 'var(--text2)';
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">' +
+        (displayJob ? '<span style="font-size:13px;font-weight:700;cursor:pointer;" onclick="showPage(\'jobs\',null);setTimeout(()=>openJobDetail('+displayJob.id+'),100)">' + escapeHtml(displayJob.title) + '</span>' +
+        '<span style="color:var(--border2);">›</span>' : '') +
+        '<span style="padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:'+stageColor+'18;color:'+stageColor+';border:1px solid '+stageColor+'40;">' + displayStage + '</span>' +
+        (c.rejectionReasonLabel ? '<span class="badge badge-red" style="font-size:10px;">🚫 ' + escapeHtml(c.rejectionReasonLabel) + '</span>' : '') +
+        (apps.length > 1 ? '<span style="font-size:11px;color:var(--text3);">+' + (apps.length-1) + ' more job' + (apps.length>2?'s':'') + '</span>' : '') +
+        '</div>' +
+        // Stage tracker — compact dots
+        '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px;">' +
+        '<div style="display:flex;align-items:center;gap:0;min-width:max-content;">' +
+        buildStageTrackerHTML(c, displayJobId) + '</div></div>';
+    })() +
     '</div>' +
 
-    // Job application section
-    '<div style="background:var(--bg2);margin-top:8px;">' +
-    '<div id="cp-job-applications">' + buildJobApplicationsHTML(c) + '</div>' +
+    // Action buttons — primary + secondary row (Feishu style)
+    '<div style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--bg2);">' +
+    '<div id="cp-action-buttons">' + buildStageActionsCompact(c, fromJobId) + '</div>' +
     '</div>' +
 
-    // Interviews section — sorted newest first
-    '<div style="background:var(--bg2);margin-top:8px;">' +
+    // ── Job Applications — always visible, compact ──
+    '<div style="border-bottom:1px solid var(--border);" id="cp-job-applications">' +
+    buildJobApplicationsHTML(c) + '</div>' +
+
+    // ── Interviews — expanded by default ──
+    '<div style="border-bottom:1px solid var(--border);">' +
     '<div id="cp-interviews-section">' + buildInterviewsHTML(c, allInterviews, allFeedback) + '</div>' +
     '</div>' +
 
-    // Team Notes
-    '<div style="background:var(--bg2);margin-top:8px;" id="cp-team-notes-section">' +
-    '<div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">' +
-    '<div><div style="font-size:13px;font-weight:700;">📌 Team Notes</div>' +
-    '<div style="font-size:11px;color:var(--text3);margin-top:2px;">Visible to everyone · Not tied to an interview round</div></div>' +
-    '<button class="btn btn-primary btn-sm" onclick="openAddNote(' + c.id + ')">+ Add Note</button>' +
-    '</div>' +
-    '<div style="padding:12px 16px;" id="team-notes-list-' + c.id + '">' + renderTeamNotesList(c) + '</div>' +
-    '</div>' +
+    // ── ACCORDION: Team Notes ──
+    buildAccordionSection('cp-accordion-notes', '📌 Team Notes',
+      getNotes(c).length > 0 ? getNotes(c).length + ' note' + (getNotes(c).length>1?'s':'') : 'No notes',
+      false,
+      '<div style="padding:12px 16px;" id="team-notes-list-' + c.id + '">' + renderTeamNotesList(c) + '</div>' +
+      '<div style="padding:0 16px 12px;"><button class="btn btn-primary btn-sm" onclick="openAddNote(' + c.id + ')">+ Add Note</button></div>'
+    ) +
 
-    // Offers
-    '<div id="cp-offers-section" style="background:var(--bg2);margin-top:8px;">' + buildOffersHTML(c) + '</div>' +
+    // ── ACCORDION: Offers ──
+    buildAccordionSection('cp-accordion-offers', '📄 Offers',
+      (() => { const co = offers.filter(o=>o.candidateId===c.id); return co.length ? co.length + ' offer' + (co.length>1?'s':'') : 'None'; })(),
+      false,
+      '<div id="cp-offers-section">' + buildOffersHTML(c) + '</div>'
+    ) +
 
-    // Onboarding section — shown for Pending Join candidates
-    (c.stage === 'Pending Join' ? '<div id="cp-onboarding-section" style="background:var(--bg2);margin-top:8px;">' + buildCandOnboardingHTML(c) + '</div>' : '') +
+    // ── ACCORDION: Onboarding (only for Pending Join) ──
+    (c.stage === 'Pending Join' ?
+      buildAccordionSection('cp-accordion-onboarding', '🚀 Onboarding',
+        (() => {
+          const onb = getCandOnboarding(c);
+          const obTasks = tasks.filter(t=>t._onboarding&&String(t.candidateId)===String(c.id));
+          const done = obTasks.filter(t=>t.status==='Done').length;
+          return obTasks.length ? done+'/'+obTasks.length+' tasks' : 'Not started';
+        })(),
+        true, // open by default for Pending Join
+        '<div id="cp-onboarding-section">' + buildCandOnboardingHTML(c) + '</div>'
+      ) : '') +
 
-    // Tasks linked to this candidate
-    '<div id="cp-tasks-section" style="background:var(--bg2);margin-top:8px;">' + buildCandTasksHTML(c) + '</div>' +
+    // ── ACCORDION: Tasks ──
+    buildAccordionSection('cp-accordion-tasks', '✅ Tasks',
+      (() => { const ct = tasks.filter(t=>String(t.candidateId)===String(c.id)); return ct.length ? ct.filter(t=>t.status!=='Done').length+' open' : 'None'; })(),
+      false,
+      '<div id="cp-tasks-section">' + buildCandTasksHTML(c) + '</div>'
+    ) +
 
     '</div>' + // end right panel
     '</div>'; // end main layout
@@ -11494,6 +11640,9 @@ document.addEventListener('click', e => {
     </button>
     <button onclick="mobileNav('offers',null);toggleMobileMore()" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:600;">
       <span style="font-size:20px;">📄</span>Offers
+    </button>
+    <button onclick="mobileNav('onboarding',null);toggleMobileMore()" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:600;">
+      <span style="font-size:20px;">🚀</span>Onboarding
     </button>
     <button onclick="mobileNav('projects',null);toggleMobileMore()" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 6px;cursor:pointer;font-family:inherit;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:600;">
       <span style="font-size:20px;">📁</span>Projects
