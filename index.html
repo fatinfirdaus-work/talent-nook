@@ -816,14 +816,12 @@
   [onclick] { cursor:pointer; }
   a { transition:color 0.15s; }
   a:hover { opacity:0.8; }
-  /* Material Icons Outlined — nav sidebar */
-  .nav-icon { font-family: 'Material Icons Outlined'; font-weight: normal; font-style: normal;
-    font-size: 20px; line-height: 1; letter-spacing: normal; text-transform: none;
-    display: inline-block; white-space: nowrap; word-wrap: normal; direction: ltr;
-    -webkit-font-smoothing: antialiased; width: 20px; text-align: center; flex-shrink: 0; }
-  body.sidebar-collapsed .sidebar .nav-icon { font-size: 20px; margin: 0; }
+  /* Inline SVG nav icons — no CDN, no loading delay */
+  .nav-icon { width:20px; height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .nav-icon svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  body.sidebar-collapsed .sidebar .nav-icon { width:22px; height:22px; }
+  body.sidebar-collapsed .sidebar .nav-icon svg { width:20px; height:20px; }
 </style>
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
 </head>
 <body>
 
@@ -878,56 +876,56 @@
     <div class="nav-section">
       <div class="nav-label">Overview</div>
       <div class="nav-item active" data-label="Dashboard" onclick="showPage('dashboard', this)">
-        <span class="nav-icon material-icons-outlined">dashboard</span><span class="nav-text">Dashboard</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span class="nav-text">Dashboard</span>
       </div>
       <div class="nav-item" data-label="Analytics" onclick="showPage('analytics', this)">
-        <span class="nav-icon material-icons-outlined">bar_chart</span><span class="nav-text">Analytics</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V12"/><path d="M12 20V4"/><path d="M20 20v-6"/></svg></span><span class="nav-text">Analytics</span>
       </div>
     </div>
     <div class="nav-section">
       <div class="nav-label">Recruiting</div>
       <div class="nav-item" data-label="Projects" onclick="showPage('projects', this)">
-        <span class="nav-icon material-icons-outlined">folder</span><span class="nav-text">Projects</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></span><span class="nav-text">Projects</span>
       </div>
       <div class="nav-item" data-label="Jobs" onclick="showPage('jobs', this)">
-        <span class="nav-icon material-icons-outlined">work</span><span class="nav-text">Jobs</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="8" width="20" height="13" rx="2"/><path d="M8 8V6a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></span><span class="nav-text">Jobs</span>
         <span class="nav-badge" id="badge-jobs"></span>
       </div>
       <div class="nav-item" data-label="Candidates" onclick="showPage('candidates', this)">
-        <span class="nav-icon material-icons-outlined">people</span><span class="nav-text">Candidates</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span><span class="nav-text">Candidates</span>
         <span class="nav-badge" id="badge-candidates"></span>
       </div>
       <div class="nav-item" data-label="Pipeline" onclick="showPage('pipeline', this)">
-        <span class="nav-icon material-icons-outlined">account_tree</span><span class="nav-text">Pipeline</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v4M12 11l-5 6M12 11l5 6"/></svg></span><span class="nav-text">Pipeline</span>
       </div>
       <div class="nav-item" data-label="Interviews" onclick="showPage('interviews', this)">
-        <span class="nav-icon material-icons-outlined">event</span><span class="nav-text">Interviews</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span><span class="nav-text">Interviews</span>
         <span class="nav-badge" id="badge-interviews"></span>
       </div>
       <div class="nav-item" data-label="Offers" onclick="showPage('offers', this)">
-        <span class="nav-icon material-icons-outlined">description</span><span class="nav-text">Offers</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg></span><span class="nav-text">Offers</span>
         <span class="nav-badge" id="badge-offers"></span>
       </div>
       <div class="nav-item" data-label="Onboarding" onclick="showPage('onboarding', this)">
-        <span class="nav-icon material-icons-outlined">rocket_launch</span><span class="nav-text">Onboarding</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c0 0-6 4-6 12l6 4 6-4c0-8-6-12-6-12z"/><circle cx="12" cy="10" r="2"/><path d="M6 14l-3 4 4-1"/><path d="M18 14l3 4-4-1"/></svg></span><span class="nav-text">Onboarding</span>
         <span class="nav-badge" id="badge-onboarding" style="background:var(--purple)"></span>
       </div>
     </div>
     <div class="nav-section">
       <div class="nav-label">Workspace</div>
       <div class="nav-item" data-label="Reports" onclick="showPage('reports', this)">
-        <span class="nav-icon material-icons-outlined">summarize</span><span class="nav-text">Reports</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 10h10M4 14h12M4 18h8"/><path d="M16 14l2 2 4-4"/></svg></span><span class="nav-text">Reports</span>
       </div>
       <div class="nav-item" data-label="Inbox" onclick="showPage('inbox', this)">
-        <span class="nav-icon material-icons-outlined">inbox</span><span class="nav-text">Inbox</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg></span><span class="nav-text">Inbox</span>
         <span class="nav-badge" id="badge-inbox" style="background:var(--red)"></span>
       </div>
       <div class="nav-item" data-label="Tasks" onclick="showPage('tasks', this)">
-        <span class="nav-icon material-icons-outlined">check_circle</span><span class="nav-text">Tasks</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg></span><span class="nav-text">Tasks</span>
         <span class="nav-badge" id="badge-tasks"></span>
       </div>
       <div class="nav-item" data-label="Settings" onclick="showPage('settings', this)">
-        <span class="nav-icon material-icons-outlined">settings</span><span class="nav-text">Settings</span>
+        <span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span><span class="nav-text">Settings</span>
       </div>
     </div>
   </nav>
