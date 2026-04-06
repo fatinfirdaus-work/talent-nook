@@ -11462,21 +11462,26 @@ let pdfDoc = null, pdfPage = 1, pdfZoom = 1.3, pdfRendering = false, pdfCandId =
 async function loadInlinePdf(candId) {
   pdfCandId = candId;
   const cand = getCand(candId);
-  if(!cand?.hasResume) return;
-
   const container = document.getElementById('pdf-container');
   if(!container) return;
 
-  const isDocx = (cand.resumeFilename||'').toLowerCase().endsWith('.docx') ||
-                 (cand.resumeType||'').includes('word');
+  const isDocx = (cand?.resumeFilename||'').toLowerCase().endsWith('.docx') ||
+                 (cand?.resumeType||'').includes('word');
 
-  container.innerHTML = '<div style="text-align:center;color:#ccc;padding:40px;"><div style="font-size:14px;margin-top:16px;">Loading resume...</div></div>';
+  // Debug log helper — shows steps visibly in the panel
+  const steps = [];
+  const log = (msg, ok=true) => {
+    steps.push({ msg, ok });
+    container.innerHTML = '<div style="padding:20px;font-family:monospace;font-size:11px;color:var(--text2);line-height:2;">' +
+      steps.map(s => `<div style="color:${s.ok?'var(--green)':'var(--red)'};">${s.ok?'✓':'✗'} ${s.msg}</div>`).join('') +
+      '</div>';
+  };
 
   const showFallback = (msg) => {
     container.innerHTML =
-      '<div style="color:var(--text3);padding:32px;text-align:center;">' +
-      '<div style="font-size:14px;font-weight:600;margin-bottom:6px;color:var(--text);">' + escapeHtml(cand.resumeFilename||'Resume') + '</div>' +
-      '<div style="font-size:12px;color:var(--text3);margin-bottom:20px;">' + msg + '</div>' +
+      '<div style="color:var(--text3);padding:24px;text-align:center;">' +
+      '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">' + escapeHtml(cand?.resumeFilename||'Resume') + '</div>' +
+      '<div style="font-size:11px;font-family:monospace;background:var(--bg3);padding:10px;border-radius:6px;margin-bottom:16px;text-align:left;color:var(--red);">' + msg + '</div>' +
       '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
       '<button class="btn btn-primary btn-sm" onclick="viewResume('+candId+')">Open in New Tab</button>' +
       '<button class="btn btn-ghost btn-sm" onclick="downloadResume('+candId+')">Download</button>' +
@@ -11484,29 +11489,36 @@ async function loadInlinePdf(candId) {
       '</div></div>';
   };
 
-  if(isDocx) { showFallback('DOCX files cannot be previewed inline. Use Open or Download.'); return; }
+  log(`Candidate ${candId} · hasResume=${cand?.hasResume} · file=${cand?.resumeFilename||'none'}`);
+
+  if(!cand?.hasResume) { showFallback('hasResume is false — no resume on record'); return; }
+  if(isDocx) { showFallback('DOCX cannot preview inline — use Open or Download'); return; }
 
   try {
-    // Wait up to 8 seconds for Firebase auth + getResumeData to be ready
+    // Wait for Firebase auth
     let waited = 0;
     while((!currentUser || !window.getResumeData) && waited < 8000) {
       await new Promise(res => setTimeout(res, 250));
       waited += 250;
     }
-    if(!currentUser || !window.getResumeData) {
-      showFallback('Could not connect to cloud storage. Please refresh.');
-      return;
-    }
 
-    // Get a short-lived signed URL from Firebase Storage
+    if(!currentUser) { showFallback('ERROR: Not signed in (currentUser is null after 8s)'); return; }
+    if(!window.getResumeData) { showFallback('ERROR: window.getResumeData not loaded — Firebase module may have failed'); return; }
+
+    log(`Auth OK · uid=${currentUser.uid}`);
+    log(`resumePath stored = ${cand.resumePath || '(none — will try default)'}`);
+
     const r = await window.getResumeData(candId);
+
     if(!r?.url) {
-      showFallback('Resume not found in cloud storage. Try re-uploading.');
+      const triedPath = cand.resumePath || `users/${currentUser.uid}/resumes/${candId}`;
+      showFallback(`getResumeData returned null.\nTried path: ${triedPath}\n\nThe file may not exist in Firebase Storage.\nCheck: Firebase Console → Storage → users/${currentUser.uid}/resumes/`);
       return;
     }
 
-    // Render via iframe — Firebase Storage signed URLs work in iframes with no CORS issues
-    // The signed token in the URL handles auth; the browser loads it natively
+    log(`Got signed URL ✓`);
+    log(`Loading in iframe...`);
+
     container.style.padding = '0';
     container.innerHTML =
       `<iframe src="${r.url}"
@@ -11518,8 +11530,8 @@ async function loadInlinePdf(candId) {
     if(totalEl) totalEl.textContent = '–';
 
   } catch(err) {
+    showFallback(`EXCEPTION: ${err.message}\n${err.stack||''}`);
     console.error('Resume load error:', err);
-    showFallback('Could not load resume — try opening in a new tab.');
   }
 }
 
