@@ -12217,7 +12217,7 @@ document.addEventListener('click', e => {
 <!-- FIREBASE -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider,
+import { getAuth, onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider,
          signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, writeBatch }
@@ -12237,6 +12237,15 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
+
+// Handle redirect result when Google sends user back to the app
+getRedirectResult(auth).catch(e => {
+  if(e.code !== 'auth/no-current-user') {
+    console.error('Redirect sign-in error:', e);
+    const el = document.getElementById('login-error');
+    if(el) { el.textContent = e.message; el.style.display = 'block'; }
+  }
+});
 
 let currentUser = null;
 let unsubscribeFns = [];
@@ -12264,7 +12273,8 @@ window._archiveToFirestore = async (type, id, data) => {
 // Expose auth functions to global scope
 window.signInGoogle = async () => {
   try {
-    await signInWithPopup(auth, googleProvider);
+    // Use redirect instead of popup — works on GitHub Pages and avoids popup blockers
+    await signInWithRedirect(auth, googleProvider);
   } catch(e) { showLoginError(e.message); }
 };
 
@@ -12573,7 +12583,7 @@ window.downloadResume = async (id) => {
     a.download = r.filename||'resume.pdf'; a.click(); return;
   }
   showToast('Resume not available — try re-uploading');
-};};
+};
 
 // Override saveCandidate to upload resume to cloud
 const _origSaveCandidate = window.saveCandidate;
