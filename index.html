@@ -1,19 +1,4 @@
-<
-
-function copyToClipboard(text, label) {
-  navigator.clipboard.writeText(text).then(() => {
-    showToast((label||'') + ' copied!');
-  }).catch(() => {
-    // fallback
-    const el = document.createElement('textarea');
-    el.value = text; el.style.position='fixed'; el.style.opacity='0';
-    document.body.appendChild(el); el.select();
-    document.execCommand('copy');
-    document.body.removeChild(el);
-    showToast((label||'') + ' copied!');
-  });
-}
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1647,6 +1632,19 @@ function save() {
   // Sync to Firestore
   if(window._cloudSave) window._cloudSave().catch(e => console.warn('Cloud save error', e));
 }
+function copyToClipboard(text, label) {
+  navigator.clipboard.writeText(text).then(() => {
+    showToast((label||'') + ' copied!');
+  }).catch(() => {
+    const el = document.createElement('textarea');
+    el.value = text; el.style.position='fixed'; el.style.opacity='0';
+    document.body.appendChild(el); el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast((label||'') + ' copied!');
+  });
+}
+
 function load() {
   try {
     return {
