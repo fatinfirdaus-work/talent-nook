@@ -1104,12 +1104,32 @@
           </div>
         </div>
 
-        <!-- Hidden elements kept for JS compatibility -->
+        <!-- Recent Activity (collapsed by default) -->
+        <div class="panel" style="margin-bottom:18px;">
+          <div onclick="const b=document.getElementById('dash-activity-body');const open=b.style.display!=='none';b.style.display=open?'none':'block';this.querySelector('.act-chev').style.transform=open?'rotate(-90deg)':''"
+            style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:0;"
+            class="panel-header">
+            <span class="panel-title">Recent Activity</span>
+            <svg class="act-chev" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text3);transition:transform 0.2s;transform:rotate(-90deg);"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div id="dash-activity-body" style="display:none;">
+            <div class="panel-body" id="activity-feed"></div>
+          </div>
+        </div>
+
+        <!-- Tasks Summary -->
+        <div class="panel" style="margin-bottom:18px;">
+          <div class="panel-header">
+            <span class="panel-title">Tasks</span>
+            <button class="btn btn-ghost btn-sm" onclick="showPage('tasks',null)" style="font-size:12px;">View All →</button>
+          </div>
+          <div id="dash-tasks-summary" class="panel-body"></div>
+        </div>
+
+        <!-- Hidden for JS compatibility -->
         <div style="display:none;">
-          <div id="activity-feed"></div>
           <div id="weekly-chart"></div>
           <span id="dash-weekly-count"></span>
-          <div id="dash-tasks-summary"></div>
         </div>
 
       </div>
@@ -2128,7 +2148,7 @@ function renderDashboard() {
         const n = candidates.filter(c=>getCandJobIds(c).includes(j.id)&&(getCandStageForJob(c,j.id)||c.stage)===s).length;
         return n ? `<span style="font-size:10px;background:${stageColors[s]||'var(--bg3)'}18;color:${stageColors[s]||'var(--text3)'};border-radius:10px;padding:1px 7px;font-weight:600;">${n} ${s}</span>` : '';
       }).filter(Boolean).join('');
-      const daysOpen = j.createdAt ? daysSince(j.createdAt) : null;
+      const daysOpen = j.createdAt ? daysSince(j.createdAt) : (j.posted ? daysSince(j.posted) : null);
       const daysColor = daysOpen === null ? 'var(--text3)' : daysOpen > 60 ? 'var(--red)' : daysOpen > 30 ? 'var(--amber)' : 'var(--text3)';
       const daysLabel = daysOpen !== null ? daysOpen + 'd open' : '';
       return `<div onclick="openJobDetail(${j.id})" style="display:flex;align-items:center;gap:14px;padding:12px 16px;${i<activeJobs.length-1?'border-bottom:1px solid var(--border);':''}cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
@@ -2232,32 +2252,34 @@ function renderDashboard() {
     if(!pendingJoin.length) {
       obEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:12px;">No candidates pending onboarding</div>';
     } else {
-      obEl.innerHTML = pendingJoin.slice(0,5).map(c => {
-        const accepted = offers.find(o => o.candidateId === c.id && o.status === 'Accepted');
-        const startDate = accepted?.startDate || '';
-        const job = getJob(c.jobId);
-        const daysUntil = startDate ? Math.round((new Date(startDate) - new Date(today)) / 86400000) : null;
+      // Group by job
+      const byJob = {};
+      pendingJoin.forEach(c => {
+        const jid = c.jobId || 'none';
+        if(!byJob[jid]) byJob[jid] = [];
+        byJob[jid].push(c);
+      });
+      obEl.innerHTML = Object.entries(byJob).map(([jid, cands]) => {
+        const job = getJob(parseInt(jid));
+        const soonest = cands.map(c => {
+          const acc = offers.find(o => String(o.candidateId)===String(c.id) && o.status==='Accepted');
+          return acc?.startDate || null;
+        }).filter(Boolean).sort()[0];
+        const daysUntil = soonest ? Math.round((new Date(soonest) - new Date(today)) / 86400000) : null;
         const countColor = daysUntil === null ? 'var(--text3)' : daysUntil < 0 ? 'var(--red)' : daysUntil <= 3 ? 'var(--amber)' : 'var(--green)';
-        const countText = daysUntil === null ? 'No start date' : daysUntil === 0 ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg> Today!' : daysUntil < 0 ? Math.abs(daysUntil) + 'd overdue' : daysUntil + 'd to go';
-        const onb = getCandOnboarding(c);
-        const obTasks = tasks.filter(t => t._onboarding && String(t.candidateId) === String(c.id));
-        const doneTasks = obTasks.filter(t => t.status === 'Done').length;
-        const progress = obTasks.length ? Math.round(doneTasks / obTasks.length * 100) : 0;
-        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s;"
-          onclick="openCandProfile(${c.id})"
-          onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-          <div style="width:30px;height:30px;border-radius:50%;background:${c.color}33;color:${c.color};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">${c.initials}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.name)}</div>
-            <div style="font-size:11px;color:var(--text3);">${job ? escapeHtml(job.title) : '–'}</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0;">
+        const countText = daysUntil === null ? 'No start date' : daysUntil === 0 ? 'Joining today!' : daysUntil < 0 ? Math.abs(daysUntil)+'d overdue' : daysUntil+'d to go';
+        return `<div style="padding:10px 16px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${cands.length>1?'8':'0'}px;">
+            <div>
+              <div style="font-size:13px;font-weight:700;">${job ? escapeHtml(job.title) : 'No Job'}</div>
+              <div style="font-size:11px;color:var(--text3);">${cands.length} candidate${cands.length>1?'s':''} pending</div>
+            </div>
             <div style="font-size:12px;font-weight:700;color:${countColor};">${countText}</div>
-            ${obTasks.length ? `<div style="font-size:10px;color:var(--text3);">${doneTasks}/${obTasks.length} tasks</div>` : '<div style="font-size:10px;color:var(--text3);">Not started</div>'}
           </div>
+          ${cands.length > 1 ? `<div style="display:flex;flex-wrap:wrap;gap:4px;">${cands.map(c=>`<span onclick="openCandProfile(${c.id})" style="display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:2px 8px;font-size:11px;cursor:pointer;transition:background 0.1s;" onmouseover="this.style.background='var(--accent-dim)'" onmouseout="this.style.background='var(--bg3)'"><span style="width:16px;height:16px;border-radius:50%;background:${c.color}33;color:${c.color};display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">${c.initials}</span>${escapeHtml(c.name)}</span>`).join('')}</div>` : `<div onclick="openCandProfile(${cands[0].id})" style="display:flex;align-items:center;gap:6px;cursor:pointer;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'"><span style="width:20px;height:20px;border-radius:50%;background:${cands[0].color}33;color:${cands[0].color};display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;">${cands[0].initials}</span><span style="font-size:12px;color:var(--text2);">${escapeHtml(cands[0].name)}</span></div>`}
         </div>`;
       }).join('') +
-      (pendingJoin.length > 5 ? `<div style="padding:8px 16px;font-size:11px;color:var(--text3);">+${pendingJoin.length - 5} more</div>` : '');
+      (pendingJoin.length > 8 ? `<div style="padding:8px 16px;font-size:11px;color:var(--text3);">+${pendingJoin.length - 8} more</div>` : '');
     }
   }
 }
@@ -3309,6 +3331,8 @@ function updateOfferStatus(idx, status) {
   setTimeout(() => {
     reactiveUpdate(affectedId);
     renderOffers();
+    if(affectedId) refreshRightPanel(affectedId);
+    updateSidebarBadges();
     if(status === 'Accepted' && affectedId) showStageFollowUp(affectedId, 'Pending Join', 'Offer');
   }, 80);
 }
@@ -3329,6 +3353,7 @@ function saveEditOffer(idx) {
   fields.forEach(f => { offers[idx][f.id] = document.getElementById('of-'+f.id)?.value || ''; });
   const o = offers[idx];
   save(); closeModal(); renderOffers();
+  const _cid2 = o?.candidateId; if(_cid2) { refreshRightPanel(_cid2); updateSidebarBadges(); }
   // Refresh candidate profile if open
   const candId = o?.candidateId;
   if(candId) setTimeout(() => reactiveUpdate(candId), 80);
@@ -3491,6 +3516,44 @@ function renderAnalytics() {
         </div>
         <div style="font-size:11px;color:var(--text3);width:60px;text-align:right;font-family:'JetBrains Mono';">${f.to}/${f.from}</div>
       </div>`).join('');
+  }
+
+  // ── Hires Per Month Bar Chart ──
+  const hmEl = document.getElementById('hires-per-month-chart');
+  if(hmEl) {
+    const months = parseInt(document.getElementById('hires-chart-range')?.value||'6');
+    const now = new Date();
+    const data = [];
+    for(let i = months-1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      const label = d.toLocaleDateString('en-MY',{month:'short',year:'2-digit'});
+      const count = getMetricCandidates().filter(c => {
+        if(!isCandHired(c)) return false;
+        const hd = getCandHiredAt(c) || c.applied || '';
+        return hd.startsWith(key);
+      }).length;
+      data.push({ key, label, count });
+    }
+    const max = Math.max(...data.map(d=>d.count), 1);
+    hmEl.innerHTML = `
+      <div style="display:flex;align-items:flex-end;gap:8px;height:160px;padding-bottom:24px;position:relative;">
+        ${data.map(d => {
+          const h = Math.max(d.count/max*120, d.count>0?8:0);
+          const isCurrentMonth = d.key === (now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'));
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;">
+            ${d.count > 0 ? `<div style="font-size:11px;font-weight:700;color:var(--accent);">${d.count}</div>` : ''}
+            <div title="${d.count} hire${d.count!==1?'s':''} in ${d.label}"
+              style="width:100%;background:${isCurrentMonth?'var(--accent)':'var(--accent)60'};border-radius:4px 4px 0 0;height:${h}px;min-height:${d.count>0?4:0}px;transition:height 0.5s cubic-bezier(0.4,0,0.2,1);cursor:pointer;"
+              onmouseover="this.style.background='var(--accent)';this.parentElement.querySelector('div:last-child').style.fontWeight='700';this.parentElement.querySelector('div:last-child').style.color='var(--text)'"
+              onmouseout="this.style.background='${isCurrentMonth?'var(--accent)':'var(--accent)60'}';this.parentElement.querySelector('div:last-child').style.fontWeight='';this.parentElement.querySelector('div:last-child').style.color=''">
+            </div>
+            <div style="font-size:10px;color:var(--text3);white-space:nowrap;position:absolute;bottom:0;">${d.label}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      ${data.every(d=>d.count===0) ? '<div style="text-align:center;font-size:12px;color:var(--text3);margin-top:8px;">No hires recorded yet — hire dates are stamped when you move a candidate to Hired stage</div>' : ''}
+    `;
   }
 }
 
@@ -7828,7 +7891,11 @@ function saveOffer(id) {
   activities.unshift({ text:`Offer created for <strong>${c.name}</strong>${salaryDisplay?' at '+salaryDisplay:''}`, color:'var(--purple)', ts:Date.now() });
   save(); closeModal();
   showToast('Offer created!');
-  setTimeout(() => reactiveUpdate(id), 80);
+  setTimeout(() => {
+    reactiveUpdate(id);
+    refreshRightPanel(id);
+    updateSidebarBadges();
+  }, 80);
 }
 
 function openJobDetail(id, pushHistory=true) {
@@ -12996,6 +13063,184 @@ function showSyncing(on) {
 }
 // ══════════════════════════════════════════════
 // 🗂  TRIAGE MODE
+// ══════════════════════════════════════════════
+let _triageQueue = [];
+let _triageIdx   = 0;
+let _triageDir   = 1;
+
+function startTriage() {
+  const acts = getTodayActions();
+  const seen = new Set();
+  _triageQueue = [];
+  acts.forEach(a => {
+    if(a.candId && !seen.has(a.candId)) {
+      seen.add(a.candId);
+      _triageQueue.push(a.candId);
+    }
+  });
+  if(!_triageQueue.length) { showToast('No candidates to review!'); return; }
+  _triageIdx = 0;
+  _triageDir = 1;
+
+  const overlay = document.getElementById('triage-overlay');
+  if(!overlay) return;
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    overlay.style.opacity = '1';
+    overlay.style.transform = 'scale(1)';
+  }));
+  document.body.style.overflow = 'hidden';
+  renderTriageCard(true);
+}
+
+function closeTriage() {
+  const overlay = document.getElementById('triage-overlay');
+  if(!overlay) return;
+  overlay.style.opacity = '0';
+  overlay.style.transform = 'scale(0.97)';
+  setTimeout(() => { overlay.style.display = 'none'; }, 200);
+  document.body.style.overflow = '';
+  // Refresh dashboard after triage
+  renderDashboard();
+}
+
+function triageNext() {
+  if(_triageIdx >= _triageQueue.length - 1) {
+    closeTriage();
+    showToast('Review complete!');
+    return;
+  }
+  _triageDir = 1;
+  _triageIdx++;
+  renderTriageCard(false);
+}
+
+function triagePrev() {
+  if(_triageIdx <= 0) return;
+  _triageDir = -1;
+  _triageIdx--;
+  renderTriageCard(false);
+}
+
+function triageActionDone() {
+  // Called after an action is taken — refresh card + advance after delay
+  const cid = _triageQueue[_triageIdx];
+  // Re-render card to show updated state
+  setTimeout(() => renderTriageCard(false, true), 300);
+}
+
+function renderTriageCard(initial, sameCard) {
+  const card = document.getElementById('triage-card');
+  const progressText = document.getElementById('triage-progress-text');
+  const progressBar  = document.getElementById('triage-progress-bar');
+  const prevBtn = document.getElementById('triage-prev-btn');
+  const nextBtn = document.getElementById('triage-next-btn');
+  if(!card) return;
+
+  const total = _triageQueue.length;
+  const idx   = _triageIdx;
+  const c     = getCand(_triageQueue[idx]);
+
+  if(progressText) progressText.textContent = idx+1 + ' of ' + total;
+  if(progressBar)  progressBar.style.width = ((idx+1)/total*100) + '%';
+  if(prevBtn) prevBtn.style.opacity = idx === 0 ? '0.3' : '1';
+  if(nextBtn) nextBtn.textContent   = idx === total-1 ? 'Finish' : 'Next →';
+
+  if(!c) { triageNext(); return; }
+
+  if(!initial && !sameCard) {
+    card.style.transition = 'none';
+    card.style.transform  = 'translateX(' + (_triageDir * 50) + 'px)';
+    card.style.opacity    = '0';
+  }
+
+  const job       = getJob(c.jobId);
+  const stage     = c.stage || 'Applied';
+  const stageCol  = stageColors[stage] || 'var(--text2)';
+  const signals   = getCandIntelligence(c);
+  const lastAct   = getLastActivityDate(c);
+  const daysIdle  = daysSince(lastAct);
+  const fb        = (c.feedback||[]).slice(-1)[0];
+  const stars     = Array(5).fill(0).map((_,i) => '<span style="color:'+(i<(c.rating||0)?'#fbbf24':'var(--border2)')+';">★</span>').join('');
+
+  // Build action buttons inline (no navigation away)
+  const id = c.id;
+  let actionBtns = '';
+  if(stage === 'Applied' || stage === 'Screening') {
+    actionBtns = `<button class="btn btn-primary" onclick="openScheduleInterview(${id})" style="flex:1;">Schedule Interview</button>
+      <button class="btn btn-ghost btn-sm" onclick="openMoveStage(${id},${c.jobId||'null'})">Move Stage</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="confirmReject(${id})">Reject</button>`;
+  } else if(stage === 'Interview') {
+    actionBtns = `<button class="btn btn-primary" onclick="openAddFeedbackRound(${id})" style="flex:1;">Add Feedback</button>
+      <button class="btn btn-ghost btn-sm" onclick="openMoveStage(${id},${c.jobId||'null'})">Move Stage</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="confirmReject(${id})">Reject</button>`;
+  } else if(stage === 'Offer') {
+    actionBtns = `<button class="btn btn-primary" onclick="openCreateOffer(${id})" style="flex:1;">Create Offer</button>
+      <button class="btn btn-ghost btn-sm" onclick="openMoveStage(${id},${c.jobId||'null'})">Move Stage</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="confirmReject(${id})">Reject</button>`;
+  } else {
+    actionBtns = `<button class="btn btn-primary" onclick="openMoveStage(${id},${c.jobId||'null'})" style="flex:1;">Move Stage</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="confirmReject(${id})">Reject</button>`;
+  }
+
+  card.innerHTML = `
+    <div style="padding:24px 24px 16px;">
+      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:16px;">
+        <div style="width:48px;height:48px;border-radius:50%;background:${c.color}33;color:${c.color};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0;">${c.initials}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
+            <span style="font-size:17px;font-weight:800;">${escapeHtml(c.name)}</span>
+            <span style="font-size:12px;">${stars}</span>
+            <span style="padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;background:${stageCol}18;color:${stageCol};border:1px solid ${stageCol}40;">${stage}</span>
+            ${signals.map(s=>'<span style="font-size:10px;font-weight:700;background:'+s.color+'20;color:'+s.color+';border:1px solid '+s.color+'40;border-radius:10px;padding:1px 6px;">'+s.label+'</span>').join('')}
+          </div>
+          <div style="font-size:12px;color:var(--text3);">${c.currentTitle?escapeHtml(c.currentTitle)+' · ':''}${job?escapeHtml(job.title):''}${c.location?' · '+escapeHtml(c.location):''}</div>
+        </div>
+        <button onclick="openCandProfile(${c.id});closeTriage();" class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:11px;">Full Profile ↗</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:4px;">Experience & Skills</div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px;">${escapeHtml(c.exp||'—')}</div>
+          <div style="font-size:11px;color:var(--text3);">${(c.skills||[]).slice(0,4).map(s=>escapeHtml(s)).join(', ')||'No skills listed'}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;">
+          <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:4px;">Activity</div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px;">${daysIdle !== null ? daysIdle+'d ago' : 'Applied '+escapeHtml(c.applied||'—')}</div>
+          <div style="font-size:11px;color:var(--text3);">Source: ${escapeHtml(c.source||'—')} · Applied ${escapeHtml(c.applied||'—')}</div>
+        </div>
+      </div>
+
+      ${fb ? `<div style="background:var(--accent-dim);border:1px solid var(--accent)30;border-radius:8px;padding:10px 12px;margin-bottom:16px;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);margin-bottom:4px;">Latest Feedback — ${escapeHtml(fb.round||'')} · ${escapeHtml(fb.recommendation||'')}</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5;">${escapeHtml((fb.notes||'').slice(0,180))}${(fb.notes||'').length>180?'…':''}</div>
+      </div>` : c.notes ? `<div style="background:var(--bg3);border-radius:8px;padding:10px 12px;margin-bottom:16px;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:4px;">Notes</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5;">${escapeHtml(c.notes.slice(0,180))}${c.notes.length>180?'…':''}</div>
+      </div>` : ''}
+    </div>
+
+    <div style="border-top:1px solid var(--border);padding:14px 24px;background:var(--bg3);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      ${actionBtns}
+      <div style="flex:1;"></div>
+      <button onclick="triageNext()" class="btn btn-ghost btn-sm" style="color:var(--text3);">Skip →</button>
+    </div>`;
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    card.style.transition = 'transform 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease';
+    card.style.transform  = 'translateX(0)';
+    card.style.opacity    = '1';
+  }));
+}
+
+document.addEventListener('keydown', e => {
+  const overlay = document.getElementById('triage-overlay');
+  if(!overlay || overlay.style.display === 'none') return;
+  if(e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); triageNext(); }
+  if(e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); triagePrev(); }
+  if(e.key === 'Escape') closeTriage();
+});
 // ══════════════════════════════════════════════
 let _triageQueue   = [];
 let _triageIdx     = 0;
