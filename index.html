@@ -5902,10 +5902,10 @@ function saveEmailTemplateOverride(tplId) {
   }
   const actions = document.querySelector('#stpl-editor-panel .stpl-header-actions');
   if(actions && !actions.querySelector('.stpl-reset-btn')) {
-    actions.insertAdjacentHTML('afterbegin', '<button class="btn btn-ghost btn-sm stpl-reset-btn" style="color:var(--text3);" onclick="resetEmailTemplateOverride('' + tplId + '')"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg> Reset</button>');
+    actions.insertAdjacentHTML('afterbegin', '<button class="btn btn-ghost btn-sm stpl-reset-btn" style="color:var(--text3);" onclick="resetEmailTemplateOverride(&apos;' + tplId + '&apos;)"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg> Reset</button>');
   }
   // Mark sidebar item as edited without re-render
-  const sidebarSub = document.querySelector();
+  const sidebarSub = document.querySelector('#stpl-item-' + tplId + ' .stpl-sidebar-sub');
   if(sidebarSub && !sidebarSub.innerHTML.includes('edited')) {
     sidebarSub.insertAdjacentHTML('beforeend', ' · <span style="color:var(--amber);">edited</span>');
   }
