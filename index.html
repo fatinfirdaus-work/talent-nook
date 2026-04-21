@@ -199,7 +199,7 @@
   .score-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
   .kanban-wrap { overflow-x: auto; padding-bottom: 8px; }
   .kanban { display: flex; gap: 12px; min-width: max-content; align-items: flex-start; }
-  .kanban-col { width: 210px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .kanban-col { width: 210px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;  animation: fadeIn 0.18s ease both; }
   .kanban-col-header { padding: 11px 13px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
   .kanban-col-title { font-size: 12.5px; font-weight: 700; }
   .kanban-cards { padding: 9px; display: flex; flex-direction: column; gap: 7px; min-height: 70px; }
@@ -926,6 +926,58 @@
   /* Nav items already have transitions, ensure badge pops */
   .nav-badge { transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), background 0.15s; }
 
+  /* Accordion/collapse bodies — smooth slide */
+  [id$="-body"] { overflow: hidden; }
+
+  /* Onboarding expand body */
+  [id^="ob-body-"] { overflow: hidden; }
+
+  /* Every row that has onclick in tasks, interviews, offers, inbox */
+  .task-item, .interview-item, .offer-item, .inbox-item {
+    transition: background 0.12s, transform 0.1s;
+  }
+  .task-item:hover, .interview-item:hover, .offer-item:hover, .inbox-item:hover {
+    background: var(--bg3);
+  }
+  .task-item:active, .interview-item:active, .offer-item:active, .inbox-item:active {
+    transform: scale(0.995);
+  }
+
+  /* Clickable list rows everywhere — generic */
+  [onclick][style*="cursor:pointer"]:not(.btn):not(.nav-item) {
+    transition: background 0.12s;
+  }
+
+  /* Stage tracker steps */
+  .stage-step { transition: background 0.15s, border-color 0.15s; }
+
+  /* Pipeline kanban drag handle feedback */
+  .kanban-card:active { cursor: grabbing; transform: scale(0.98) rotate(1deg); box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+
+  /* Checkbox/toggle animate on check */
+  input[type="checkbox"] { transition: transform 0.1s; cursor: pointer; }
+  input[type="checkbox"]:active { transform: scale(0.88); }
+
+  /* Candidate card in gallery view */
+  .cand-gallery-card { transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s; }
+  .cand-gallery-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,0.35); transform: translateY(-2px); border-color: var(--border2); }
+
+  /* Triage overlay action buttons */
+  #triage-overlay .btn { transition: background 0.12s, transform 0.1s, box-shadow 0.12s; }
+
+  /* Detail panel slide */
+  .detail-panel { transition: right 0.25s cubic-bezier(0.4,0,0.2,1), opacity 0.2s; }
+
+  /* Page transitions already on .page.active — also animate content within */
+  .page-inner > * { animation: fadeIn 0.2s ease both; }
+  .page-inner > *:nth-child(1) { animation-delay: 0ms; }
+  .page-inner > *:nth-child(2) { animation-delay: 30ms; }
+  .page-inner > *:nth-child(3) { animation-delay: 60ms; }
+  .page-inner > *:nth-child(4) { animation-delay: 90ms; }
+
+  /* Settings tab content */
+  #settings-content { animation: fadeIn 0.18s ease; }
+
   /* ── CALENDAR PAGE ── */
   #page-calendar.active { display:flex; flex-direction:column; height:calc(100vh - 52px); overflow:hidden; }
   .cal-shell { display:flex; flex:1; min-height:0; overflow:hidden; }
@@ -1039,7 +1091,6 @@
         <button class="btn btn-ghost" style="flex:1" onclick="signUpEmail()">Register</button>
       </div>
       <div id="login-error" style="color:var(--red);font-size:12px;margin-top:8px;display:none"></div>
-    </div>
     </div>
 
     <div class="login-note"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> Private & secure — only you can access your data</div>
@@ -1181,6 +1232,15 @@
         </div>
       </div>
 
+      <!-- Today's Actions — hidden when empty, shown by renderDashboard -->
+      <div class="panel" id="dash-today-panel" style="margin-bottom:20px;display:none;">
+        <div class="panel-header">
+          <span class="panel-title">Today&#39;s Actions</span>
+          <button class="btn btn-primary btn-sm" onclick="startTriage()">Start Review →</button>
+        </div>
+        <div id="dash-today-actions" class="panel-body"></div>
+      </div>
+
       <div class="two-col" style="align-items:start;">
         <div style="display:flex;flex-direction:column;gap:20px;">
           <!-- Active Jobs -->
@@ -1211,8 +1271,11 @@
         <div style="display:flex;flex-direction:column;gap:20px;">
           <!-- Recent Activity -->
           <div class="panel">
-            <div class="panel-header"><span class="panel-title">Recent Activity</span></div>
-            <div class="panel-body" id="activity-feed"></div>
+            <div class="panel-header" onclick="toggleRecentActivity()" style="cursor:pointer;user-select:none;">
+              <span class="panel-title">Recent Activity</span>
+              <span id="dash-activity-chevron" style="font-size:11px;color:var(--text3);transition:transform 0.2s;transform:rotate(0deg);">&#9660;</span>
+            </div>
+            <div class="panel-body" id="activity-feed" style="display:none;"></div>
           </div>
 
           <!-- Weekly Applicants Chart -->
@@ -2143,6 +2206,57 @@ function renderDashboard() {
     </div>`;
   }).join('');
 
+  // Today's Actions panel
+  const todayActionsEl = document.getElementById('dash-today-actions');
+  const todayPanel = document.getElementById('dash-today-panel');
+  if(todayActionsEl && todayPanel) {
+    const acts = getTodayActions();
+    if(!acts.length) {
+      todayPanel.style.display = 'none';
+    } else {
+      todayPanel.style.display = '';
+      // Group stuck candidates, show priority items individually
+      const stuckActs = acts.filter(a => a.type === 'stuck');
+      const priorityActs = acts.filter(a => a.type !== 'stuck');
+      let html = '';
+      priorityActs.forEach(a => {
+        const c = getCand(a.candId);
+        if(!c) return;
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.12s;"
+          onclick="openCandProfile(${c.id})"
+          onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+          <div style="width:8px;height:8px;border-radius:50%;background:${a.color};flex-shrink:0;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(c.name)}</div>
+            <div style="font-size:11px;color:var(--text3);">${a.label}${a.detail ? ' — ' + escapeHtml(a.detail.replace(c.name+' — ','')) : ''}</div>
+          </div>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text3);flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>`;
+      });
+      if(stuckActs.length) {
+        const worst = stuckActs[0];
+        const wc = getCand(worst.candId);
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.12s;"
+          onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.stuck-chevron').style.transform=this.nextElementSibling.style.display==='none'?'':'rotate(180deg)'"
+          onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0;"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12.5px;font-weight:700;">${stuckActs.length} candidate${stuckActs.length>1?'s':''} stuck — click to expand</div>
+            <div style="font-size:11px;color:var(--text3);">Worst: ${wc?escapeHtml(wc.name):''} — ${worst.label}</div>
+          </div>
+          <svg class="stuck-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text3);flex-shrink:0;transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div style="display:none;">
+          ${stuckActs.map(a => { const c2 = getCand(a.candId); if(!c2) return ''; return `<div style="display:flex;align-items:center;gap:10px;padding:8px 16px 8px 30px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.12s;" onclick="openCandProfile(${c2.id})" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
+            <div style="width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;"><div style="font-size:12px;font-weight:600;">${escapeHtml(c2.name)}</div><div style="font-size:11px;color:var(--text3);">${a.label}</div></div>
+          </div>`; }).join('')}
+        </div>`;
+      }
+      todayActionsEl.innerHTML = html || '<div style="padding:12px 16px;font-size:12px;color:var(--text3);">All good — no actions needed today.</div>';
+    }
+  }
+
   // Activity
   document.getElementById('activity-feed').innerHTML = activities.slice(0, 20).map(a=>`
     <div class="activity-item">
@@ -2637,13 +2751,17 @@ async function docsHandleFiles(files, candId) {
       // Upload to Cloudinary
       if(window.saveResumeToCloud && currentUser) {
         cand.resumePath = `users/${currentUser.uid}/resumes/${candId}`;
-        window.saveResumeToCloud(candId, b64, file.type, file.name).catch(e=>console.warn('Cloud upload failed',e));
+        window.saveResumeToCloud(candId, b64, file.type, file.name)
+          .then(ok => { if(ok && typeof refreshRightPanel === 'function') refreshRightPanel(candId); })
+          .catch(e => console.warn('Cloud upload failed', e));
       }
     }
 
     cand.documents.unshift(doc); // newest first
     save();
-    showToast(`${file.name} uploaded ✓`);
+    showToast(`${file.name} uploaded`);
+    // Refresh the right panel immediately so PDF viewer, resume tab and file count update
+    if(typeof refreshRightPanel === 'function') refreshRightPanel(candId);
   }
 
   if(status) status.innerHTML = `<div style="color:var(--green);font-size:12px;">✓ Upload complete · <button class="btn btn-primary btn-sm" onclick="parseResumeWithClaude(${candId})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><line x1="12" y1="7" x2="12" y2="11"/><line x1="8" y1="15" x2="8" y2="15"/><line x1="16" y1="15" x2="16" y2="15"/></svg> Parse with Claude</button></div>`;
@@ -6215,7 +6333,7 @@ function buildAccordionSection(id, title, subtitle, defaultOpen, content) {
   const isOpen = defaultOpen;
   return '<div style="border-bottom:1px solid var(--border);" id="' + id + '-wrapper">' +
     '<div onclick="toggleAccordion(\'' + id + '\')" ' +
-    'style="padding:11px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--bg2);transition:background 0.12s;"' +
+    'style="padding:11px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--bg2);transition:background 0.12s;user-select:none;"' +
     ' onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'var(--bg2)\'">' +
     '<div style="display:flex;align-items:center;gap:8px;">' +
     '<span style="font-size:13px;font-weight:700;">' + title + '</span>' +
@@ -6234,7 +6352,14 @@ function toggleAccordion(id) {
   const arrow = document.getElementById(id + '-arrow');
   if(!body) return;
   const isOpen = body.style.display !== 'none';
-  body.style.display = isOpen ? 'none' : '';
+  if(isOpen) {
+    body.style.animation = 'slideUp 0.18s cubic-bezier(0.4,0,0.2,1) forwards';
+    setTimeout(() => { body.style.display = 'none'; body.style.animation = ''; }, 170);
+  } else {
+    body.style.display = '';
+    body.style.animation = 'slideDown 0.2s cubic-bezier(0.4,0,0.2,1) forwards';
+    setTimeout(() => { body.style.animation = ''; }, 210);
+  }
   if(arrow) arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 
@@ -6514,7 +6639,7 @@ function buildInterviewsHTML(c, allInterviews, allFeedback) {
     html += '<div id="' + collapseId + '" style="display:' + (defaultOpen?'block':'none') + ';">';
 
     // Location
-    if (iv.location) html += '<div style="padding:0 16px 8px;font-size:11px;color:var(--accent);">📍 ' + iv.location + '</div>';
+    if (iv.location) html += '<div style="padding:0 16px 8px;font-size:11px;color:var(--accent);">' + iv.location + '</div>';
 
     // Feedback cards
     if (ivFeedback.length) {
@@ -7936,7 +8061,7 @@ function saveEditCandidate(id) {
     if(window.saveResumeToCloud && currentUser) {
       c.resumePath = `users/${currentUser.uid}/resumes/${id}`;
       window.saveResumeToCloud(id, resumeB64, resumeType, resumeFilename)
-        .then(() => { save(); showToast('Resume uploaded to cloud'); })
+        .then(() => { save(); showToast('Resume uploaded to cloud'); if(typeof refreshRightPanel === 'function') refreshRightPanel(id); })
         .catch(e => console.warn('Cloud upload failed:', e));
     }
   }
@@ -12014,14 +12139,22 @@ function renderOnboarding() {
 }
 
 function toggleObCard(candId) {
-  const bodyEl    = document.getElementById('ob-body-' + candId);
-  const chevron   = document.getElementById('ob-chevron-' + candId);
-  const headerEl  = document.getElementById('ob-card-' + candId);
-  if(!bodyEl) return; // not started yet — nothing to expand
+  const bodyEl  = document.getElementById('ob-body-' + candId);
+  const chevron = document.getElementById('ob-chevron-' + candId);
+  const headerEl= document.getElementById('ob-card-' + candId);
+  if(!bodyEl) return;
   const isOpen = bodyEl.style.display !== 'none';
-  bodyEl.style.display = isOpen ? 'none' : 'block';
+  if(isOpen) {
+    bodyEl.style.animation = 'slideUp 0.18s cubic-bezier(0.4,0,0.2,1) forwards';
+    setTimeout(() => { bodyEl.style.display = 'none'; bodyEl.style.animation = ''; }, 170);
+    if(headerEl) headerEl.style.borderRadius = '10px';
+  } else {
+    bodyEl.style.display = 'block';
+    bodyEl.style.animation = 'slideDown 0.2s cubic-bezier(0.4,0,0.2,1) forwards';
+    setTimeout(() => { bodyEl.style.animation = ''; }, 210);
+    if(headerEl) headerEl.style.borderRadius = '10px 10px 0 0';
+  }
   if(chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
-  if(headerEl) headerEl.style.borderRadius = isOpen ? (headerEl.style.borderRadius.includes('0')?'10px 10px 0 0':'10px') : '10px 10px 0 0';
 }
 
 // ── Auto-check joining dates on app load ──
@@ -12035,7 +12168,7 @@ function initOnboarding() {
 function showToast(msg) {
   const t = document.createElement('div');
   t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,0.4);animation:fadeIn 0.2s ease';
-  t.textContent = '✓' + msg;
+  t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(()=>t.remove(), 2500);
 }
@@ -12873,6 +13006,22 @@ function closeTriage() {
   renderDashboard();
 }
 
+function toggleRecentActivity() {
+  const feed = document.getElementById('activity-feed');
+  const chevron = document.getElementById('dash-activity-chevron');
+  if(!feed) return;
+  const isOpen = feed.style.display !== 'none';
+  if(isOpen) {
+    feed.style.animation = 'slideUp 0.18s cubic-bezier(0.4,0,0.2,1) forwards';
+    setTimeout(() => { feed.style.display = 'none'; feed.style.animation = ''; }, 170);
+  } else {
+    feed.style.display = '';
+    feed.style.animation = 'slideDown 0.2s cubic-bezier(0.4,0,0.2,1) forwards';
+    setTimeout(() => { feed.style.animation = ''; }, 210);
+  }
+  if(chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
 function triageNext() {
   if(_triageIdx >= _triageQueue.length - 1) { closeTriage(); showToast('Review complete!'); return; }
   _triageDir = 1; _triageIdx++; renderTriageCard(false);
@@ -12992,7 +13141,7 @@ function getCandIntelligence(c) {
 
   // Hot — 4+ stars and still active
   if((c.rating||0) >= 4 && stage !== 'Rejected' && stage !== 'Hired') {
-    signals.push({ label: '🔥 Hot', color: 'var(--amber)' });
+    signals.push({ label: 'Hot', color: 'var(--amber)' });
   }
   // Stuck — no activity for 3+ days
   if(idle !== null && idle >= 3 && stage !== 'Rejected' && stage !== 'Hired' && stage !== 'Pending Join') {
@@ -13014,7 +13163,7 @@ function getOfferIntelligence(o) {
   if(o.status === 'Pending') {
     const days = daysSince(o.createdAt);
     if(days !== null && days >= 5) {
-      signals.push({ label: '⚠️ Pending ' + days + 'd', color: 'var(--amber)' });
+      signals.push({ label: 'Pending ' + days + 'd', color: 'var(--amber)' });
     }
   }
   return signals;
@@ -13034,7 +13183,7 @@ function getTodayActions() {
     const job = getJob(c.jobId);
     actions.push({
       candId: c.id, priority: 1, type: 'interview',
-      icon: '📅', color: 'var(--accent)',
+      icon: '', color: 'var(--accent)',
       label: 'Interview today',
       detail: c.name + ' — ' + (i.round||'Interview') + ' at ' + (i.time||'TBD'),
     });
@@ -13046,8 +13195,8 @@ function getTodayActions() {
     if(idle !== null && idle >= 3) {
       actions.push({
         candId: c.id, priority: 2, type: 'hot',
-        icon: '🔥', color: 'var(--amber)',
-        label: '🔥 Hot — idle ' + idle + 'd',
+        icon: '', color: 'var(--amber)',
+        label: 'Hot — idle ' + idle + 'd',
         detail: c.name + ' — ' + (c.stage||'Applied'),
       });
     }
@@ -13057,7 +13206,7 @@ function getTodayActions() {
   activeCands.filter(c => c.stage === 'Interview' && !(c.feedback||[]).length).forEach(c => {
     actions.push({
       candId: c.id, priority: 3, type: 'nofeedback',
-      icon: '💬', color: 'var(--purple)',
+      icon: '', color: 'var(--purple)',
       label: 'No feedback',
       detail: c.name + ' — still in Interview with no notes',
     });
@@ -13071,7 +13220,7 @@ function getTodayActions() {
       if(!c) return;
       actions.push({
         candId: c.id, priority: 4, type: 'offerrisk',
-        icon: '⚠️', color: 'var(--red)',
+        icon: '', color: 'var(--red)',
         label: 'Offer pending ' + days + 'd',
         detail: c.name + ' — offer sent, no response',
       });
@@ -13086,7 +13235,7 @@ function getTodayActions() {
       if(actions.some(a => a.candId === c.id)) return;
       actions.push({
         candId: c.id, priority: 5, type: 'stuck',
-        icon: '⏳', color: 'var(--red)',
+        icon: '', color: 'var(--red)',
         label: 'Stuck ' + idle + 'd',
         detail: c.name + ' — no activity in ' + (c.stage||'Applied') + ' for ' + idle + ' days',
       });
@@ -14121,7 +14270,18 @@ window._cloudSave = async () => {
 
     // WRITE current data
     jobs.forEach(j => batch.set(doc(db,`users/${uid}/jobs`,String(j.id)), j));
-    candidates.forEach(c => batch.set(doc(db,`users/${uid}/candidates`,String(c.id)), c));
+    // Strip b64 from documents before writing to Firestore (1MB doc limit)
+    // b64 is only needed locally for the PDF viewer; Cloudinary URL handles cloud access
+    candidates.forEach(c => {
+      const cData = {...c};
+      if(cData.documents?.length) {
+        cData.documents = cData.documents.map(d => {
+          const {b64, ...rest} = d;  // strip b64, keep all other metadata
+          return rest;
+        });
+      }
+      batch.set(doc(db,`users/${uid}/candidates`,String(c.id)), cData);
+    });
     activities.slice(0,20).forEach((a,i) => batch.set(doc(db,`users/${uid}/activities`,String(i)), {...a, ts: a.ts||Date.now()}));
     offers.forEach((o,i) => batch.set(doc(db,`users/${uid}/offers`,String(i)), o));
     projects.forEach((p,i) => batch.set(doc(db,`users/${uid}/projects`,String(p.id||i)), p));
@@ -14206,6 +14366,8 @@ window.saveResumeToCloud = async (candidateId, b64, mimeType, filename) => {
       c.resumeType = mimeType;
       c.resumePath = data.public_id;  // Store public_id for deletion later
       save();
+      // Refresh right panel so PDF viewer switches to Cloudinary URL
+      if(typeof refreshRightPanel === 'function') refreshRightPanel(candidateId);
     }
     return true;
   } catch(e) {
