@@ -6794,17 +6794,36 @@ function buildDetailsTabHTML(c) {
     '<button class="btn btn-primary btn-sm" onclick="openAddNote(' + c.id + ')">+ Add Note</button></div>' +
     renderNotesList(c) + '</div>';
 
+  const langHTML = c.languages?.length
+    ? c.languages.map(l=>'<span class="skill-tag" style="background:var(--purple)22;color:var(--purple);">' + l + '</span>').join('')
+    : null;
+
   return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">' +
+    // Core contact
     '<div><div class="cp-field-label">Full Name</div><div class="cp-field-val">' + c.name + '</div></div>' +
     '<div><div class="cp-field-label">Email</div><div class="cp-field-val"><a href="mailto:' + (c.email||'') + '" style="color:var(--accent)">' + (c.email||'–') + '</a></div></div>' +
     '<div><div class="cp-field-label">Phone</div><div class="cp-field-val">' + (c.phone||'–') + '</div></div>' +
     '<div><div class="cp-field-label">Location</div><div class="cp-field-val">' + (c.location||'–') + '</div></div>' +
-    '<div><div class="cp-field-label">Experience</div><div class="cp-field-val">' + (c.exp||'–') + '</div></div>' +
+    // Role & experience
     '<div><div class="cp-field-label">Current Title</div><div class="cp-field-val">' + (c.currentTitle||'–') + '</div></div>' +
+    '<div><div class="cp-field-label">Experience</div><div class="cp-field-val">' + (c.exp||'–') + '</div></div>' +
+    '<div><div class="cp-field-label">Seniority</div><div class="cp-field-val">' + (c.seniority||'–') + '</div></div>' +
+    '<div><div class="cp-field-label">Industry</div><div class="cp-field-val">' + (c.industry||'–') + '</div></div>' +
+    // Availability
+    '<div><div class="cp-field-label">Expected Salary</div><div class="cp-field-val">' + (c.salary||'–') + '</div></div>' +
+    '<div><div class="cp-field-label">Notice Period</div><div class="cp-field-val">' + (c.notice||'–') + '</div></div>' +
+    '<div><div class="cp-field-label">Work Mode</div><div class="cp-field-val">' + (c.workMode||'–') + '</div></div>' +
+    '<div><div class="cp-field-label">Education</div><div class="cp-field-val">' + (c.education||'–') + '</div></div>' +
+    // Source & meta
     '<div><div class="cp-field-label">Source</div><div class="cp-field-val">' + (c.source||'–') + '</div></div>' +
     '<div><div class="cp-field-label">Applied Date</div><div class="cp-field-val">' + (c.applied||'–') + '</div></div>' +
+    // LinkedIn
+    (c.linkedin ? '<div style="grid-column:1/-1;"><div class="cp-field-label">LinkedIn</div><div class="cp-field-val"><a href="' + (c.linkedin.startsWith('http')?c.linkedin:'https://'+c.linkedin) + '" target="_blank" style="color:var(--accent);">' + escapeHtml(c.linkedin) + '</a></div></div>' : '') +
     '</div>' +
-    '<div style="margin-bottom:16px;"><div class="cp-field-label" style="margin-bottom:6px;">Skills</div><div class="skill-tags">' + skillsHTML + '</div></div>' +
+    // Skills
+    '<div style="margin-bottom:14px;"><div class="cp-field-label" style="margin-bottom:6px;">Skills</div><div class="skill-tags">' + skillsHTML + '</div></div>' +
+    // Languages (only if present)
+    (langHTML ? '<div style="margin-bottom:14px;"><div class="cp-field-label" style="margin-bottom:6px;">Languages</div><div class="skill-tags">' + langHTML + '</div></div>' : '') +
     notesHTML;
 }
 
@@ -7919,6 +7938,20 @@ function openEditCandidate(id) {
       <select id="ec-job">${jobs.map(j=>`<option value="${j.id}" ${c.jobId===j.id?'selected':''}>${j.title}</option>`).join('')}</select>
     </div>
     <div class="form-group"><label>Skills (comma separated)</label><input type="text" id="ec-skills" value="${(c.skills||[]).join(', ')}"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Expected Salary</label><input type="text" id="ec-salary" value="${c.salary||''}" placeholder="e.g. 8000/mo"></div>
+      <div class="form-group"><label>Notice Period</label><input type="text" id="ec-notice" value="${c.notice||''}" placeholder="e.g. 1 month"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Seniority</label><input type="text" id="ec-seniority" value="${c.seniority||''}" placeholder="e.g. Senior"></div>
+      <div class="form-group"><label>Education</label><input type="text" id="ec-education" value="${c.education||''}" placeholder="e.g. Bachelor's"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Work Mode</label><input type="text" id="ec-workmode" value="${c.workMode||''}" placeholder="Remote / Hybrid / On-site"></div>
+      <div class="form-group"><label>Industry</label><input type="text" id="ec-industry" value="${c.industry||''}" placeholder="e.g. Technology"></div>
+    </div>
+    <div class="form-group"><label>LinkedIn</label><input type="text" id="ec-linkedin" value="${c.linkedin||''}" placeholder="linkedin.com/in/..."></div>
+    <div class="form-group"><label>Languages (comma separated)</label><input type="text" id="ec-languages" value="${(c.languages||[]).join(', ')}" placeholder="English, Mandarin"></div>
     <div class="form-group">
       <label>Resume ${c.hasResume ? `<span style="color:var(--green);font-size:11px;">✓ ${escapeHtml(c.resumeFilename||'Uploaded')}</span>` : ''}</label>
       <div id="ec-drop-zone" style="border:2px dashed var(--border2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg3);"
@@ -7980,6 +8013,15 @@ function saveEditCandidate(id) {
   c.jobId = parseInt(document.getElementById('ec-job')?.value);
   const skillsRaw = document.getElementById('ec-skills')?.value;
   c.skills = skillsRaw ? skillsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  c.salary    = document.getElementById('ec-salary')?.value.trim()    || c.salary    || '';
+  c.notice    = document.getElementById('ec-notice')?.value.trim()    || c.notice    || '';
+  c.seniority = document.getElementById('ec-seniority')?.value.trim() || c.seniority || '';
+  c.education = document.getElementById('ec-education')?.value.trim() || c.education || '';
+  c.workMode  = document.getElementById('ec-workmode')?.value.trim()  || c.workMode  || '';
+  c.industry  = document.getElementById('ec-industry')?.value.trim()  || c.industry  || '';
+  c.linkedin  = document.getElementById('ec-linkedin')?.value.trim()  || c.linkedin  || '';
+  const langsRaw = document.getElementById('ec-languages')?.value;
+  if(langsRaw !== undefined) c.languages = langsRaw ? langsRaw.split(',').map(s=>s.trim()).filter(Boolean) : (c.languages||[]);
   c.initials = c.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 
   // Handle resume upload if one was selected
@@ -11998,8 +12040,22 @@ function openNewTaskModal() {
 // TEXT NORMALISATION
 // ============================================================
 
-function rpNorm(text) {
-  return text
+function rpDespaceLine(line) {
+  // Collapse "n i c o l e" → "nicole" for lines that are purely spaced single chars
+  const trimmed = line.trim();
+  if (/^([A-Za-z0-9@._] ){2,}[A-Za-z0-9@._]$/.test(trimmed)) {
+    return trimmed.replace(/ /g, '');
+  }
+  // Also collapse partial spaced sequences within a line (e.g. "n i c o l e k c h a n @...")
+  return trimmed.replace(/\b([A-Za-z0-9@._])( [A-Za-z0-9@._]){2,}/g, m => m.replace(/ /g, ''));
+}
+
+function rpNorm(rawText) {
+  // Pre-process: de-space spaced-character lines (common in PDF extracts)
+  const lines = rawText.split('\n');
+  const deSpaced = lines.map(rpDespaceLine).join('\n');
+
+  return deSpaced
     .replace(/\r/g, '')
     .replace(/\t/g, ' ')
     .replace(/[•·▪◦‣⦿]/g, ' ')
@@ -12010,7 +12066,7 @@ function rpNorm(text) {
 }
 
 function rpLines(rawText) {
-  return rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  return rawText.split('\n').map(l => rpDespaceLine(l)).filter(l => l.length > 0);
 }
 
 // ============================================================
@@ -12022,7 +12078,8 @@ const SECTION_HEADERS = [
   'career history', 'working experiences', 'work history', 'professional background',
   'education', 'skills', 'languages', 'certifications', 'projects',
   'summary', 'profile', 'objective', 'about', 'references', 'achievements',
-  'hobbies', 'interests', 'awards', 'publications', 'volunteer'
+  'hobbies', 'interests', 'awards', 'publications', 'volunteer',
+  'workexperience', // de-spaced PDF variant
 ];
 
 function rpSecIdx(lines, sectionNames) {
@@ -12302,7 +12359,8 @@ const COMPANY_KEYWORDS = [
 const EMPLOYMENT_HEADERS = [
   'working experiences', 'employment history', 'professional experience',
   'experience', 'career history', 'work history', 'work experience',
-  'employment', 'professional background', 'career summary'
+  'employment', 'professional background', 'career summary',
+  'workexperience', 'w o r k e x p e r i e n c e',  // spaced PDF variants
 ];
 
 const STOP_SECTIONS = ['references', 'referees', 'hobbies', 'interests', 'achievements', 'awards'];
@@ -12438,7 +12496,8 @@ const SKILLS_DB = {
     'Workday', 'SuccessFactors', 'BambooHR'],
   'Business': ['Stakeholder Management', 'Business Development', 'CRM', 'Salesforce',
     'Account Management', 'Project Management', 'Agile', 'Scrum', 'JIRA', 'Confluence',
-    'Business Analysis', 'Requirements Gathering'],
+    'Business Analysis', 'Requirements Gathering', 'Scrum Master', 'PSM',
+    'Cross-functional', 'Business Case', 'Financial Forecasting', 'Scenario Analysis'],
   'Data & Analytics': ['Data Management', 'Reporting', 'Analysis', 'SQL', 'SPSS',
     'Power BI', 'Tableau', 'Data Analysis', 'Data Science', 'Machine Learning',
     'Python', 'R', 'Statistics'],
@@ -12450,7 +12509,12 @@ const SKILLS_DB = {
     'MySQL', 'PostgreSQL', 'MongoDB', 'Redis'],
   'Marketing': ['SEO', 'SEM', 'Google Ads', 'Facebook Ads', 'Content Marketing',
     'Email Marketing', 'Social Media', 'HubSpot', 'Marketing Automation', 'Analytics',
-    'Google Analytics', 'Copywriting', 'Brand Management'],
+    'Google Analytics', 'Copywriting', 'Brand Management',
+    'Digital Marketing', 'eCommerce', 'CRM Strategy', 'Customer Segmentation',
+    'Loyalty Programs', 'Campaign Management', 'Direct Marketing', 'WhatsApp Marketing',
+    'Performance Marketing', 'A/B Testing', 'UAT', 'Go-to-Market', 'Revenue Analytics',
+    'Customer Journey', 'Marketing Automation', 'Cross-sell', 'Upsell', 'GenAI',
+    'Data-Driven Marketing', 'ROI Modeling', 'Budget Management', 'VIP Programs'],
   'Design': ['Figma', 'Adobe XD', 'Photoshop', 'Illustrator', 'InDesign', 'Sketch',
     'UI/UX', 'Canva', 'AutoCAD'],
   'Operations': ['Supply Chain', 'Logistics', 'Warehouse Management', 'Procurement',
@@ -12486,12 +12550,16 @@ const LANGUAGE_DB = [
 
 function rpLangs(text, lines) {
   const detected = [];
+  // Search language section first
   const langIdx = lines.findIndex(l => /\blanguages?\b/i.test(l));
+  // Also search profile/summary section (many resumes mention languages there)
+  const profileIdx = lines.findIndex(l => /^(profile|summary|about me|objective)$/i.test(l));
+  // Search full text but weight language/profile sections
   let searchText = text;
-  if (langIdx !== -1) {
-    // Prioritise language section
-    searchText = lines.slice(langIdx, langIdx + 15).join(' ');
-  }
+  const sectionTexts = [];
+  if (langIdx !== -1) sectionTexts.push(lines.slice(langIdx, langIdx + 15).join(' '));
+  if (profileIdx !== -1) sectionTexts.push(lines.slice(profileIdx, profileIdx + 20).join(' '));
+  if (sectionTexts.length) searchText = sectionTexts.join(' ') + ' ' + text;
   for (const lang of LANGUAGE_DB) {
     if (new RegExp('\\b' + rpEscRegex(lang) + '\\b', 'i').test(searchText)) {
       detected.push(lang);
