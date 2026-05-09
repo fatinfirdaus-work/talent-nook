@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <style>
   :root {
     --bg: #0d0f14;
@@ -8775,54 +8776,9 @@ function openModal(type, data={}) {
     footer.innerHTML = '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveJob()">Post Job</button>';
   } else if(type==='addCandidate') {
     title.textContent = 'Add Candidate';
-    // Reset resume globals when modal opens
     currentResumeB64 = null; currentResumeType = null; currentResumeFilename = null;
-    body.innerHTML = `
-      <!-- RESUME UPLOAD -->
-      <div class="form-group" style="margin-bottom:14px;">
-        <label>Resume (PDF or DOCX) — optional</label>
-        <div id="nc-drop-zone" style="border:2px dashed var(--border2);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border-color 0.15s;background:var(--bg3);"
-          ondragover="this.style.borderColor='var(--accent)';event.preventDefault();"
-          ondragleave="this.style.borderColor='var(--border2)';"
-          ondrop="ncHandleDrop(event)"
-          onclick="document.getElementById('nc-file-input').click()">
-          <div id="nc-dz-icon" style="color:var(--text3);margin-bottom:6px;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg></div>
-          <div id="nc-dz-text" style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:2px;">Drop resume here or click to browse</div>
-          <div style="font-size:11px;color:var(--text3);">PDF or DOCX · Max 20MB</div>
-          <input type="file" id="nc-file-input" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none" onchange="ncHandleFile(this.files[0])">
-        </div>
-      </div>
-
-      <!-- CANDIDATE FIELDS -->
-      <div class="form-row">
-        <div class="form-group"><label>Full Name</label><input type="text" id="nc-name" placeholder="Jane Smith"></div>
-        <div class="form-group"><label>Email</label><input type="email" id="nc-email" placeholder="jane@email.com"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Phone</label><input type="text" id="nc-phone" placeholder="+1 555 000 0000"></div>
-        <div class="form-group"><label>Location</label><input type="text" id="nc-location" placeholder="City or Remote"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Apply For</label>
-          <select id="nc-job">${jobs.map(j=>`<option value="${j.id}">${j.title}</option>`).join('')}</select>
-        </div>
-        <div class="form-group"><label>Stage</label>
-          <select id="nc-stage">${stages.map(s=>`<option>${s}</option>`).join('')}</select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Experience</label><input type="text" id="nc-exp" placeholder="e.g. 5 yrs"></div>
-        <div class="form-group"><label>Current Title</label><input type="text" id="nc-title" placeholder="e.g. Senior Engineer"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Source</label>
-          <select id="nc-source">${getCandidateSources().map(s=>`<option>${s}</option>`).join('')}</select>
-        </div>
-        
-      </div>
-      <div class="form-group"><label>Skills (comma separated)</label><input type="text" id="nc-skills" placeholder="React, Python, SQL"></div>
-      <div class="form-group"><label>Notes</label><textarea id="nc-notes" placeholder="Notes about this candidate..."></textarea></div>`;
-    footer.innerHTML = `<button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveCandidate()">Add Candidate</button>`;
+    window._ncRawText = '';
+    ncShowStep1();
   } else if(type==='moveStage') {
     const c = getCand(data.id);
     title.textContent = 'Move' + (c?c.name:'Candidate') + ' to Stage';
@@ -9790,6 +9746,11 @@ function saveCandidate() {
   const source = document.getElementById('nc-source')?.value || 'Direct';
   const skillsRaw = document.getElementById('nc-skills')?.value || '';
   const notes = document.getElementById('nc-notes')?.value.trim() || '';
+  const salary = document.getElementById('nc-salary')?.value.trim() || '';
+  const notice = document.getElementById('nc-notice')?.value.trim() || '';
+  const education = document.getElementById('nc-education')?.value.trim() || '';
+  const linkedin = document.getElementById('nc-linkedin')?.value.trim() || '';
+  const seniority = document.getElementById('nc-seniority')?.value.trim() || '';
   const colors = ['#4f8ef7','#a78bfa','#34d399','#fbbf24','#f472b6','#fb7185','#06b6d4','#84cc16','#c084fc','#8b91a8'];
   const newId = Math.max(0, ...candidates.map(c=>c.id)) + 1;
   const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -9801,7 +9762,13 @@ function saveCandidate() {
     initials, color: colors[newId % colors.length],
     exp, currentTitle, location,
     skills: skillsRaw ? skillsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [],
-    source, notes, rating: 3
+    source, notes, rating: 3,
+    ...(salary && {salary}),
+    ...(notice && {notice}),
+    ...(education && {education}),
+    ...(linkedin && {linkedin}),
+    ...(seniority && {seniority}),
+    ...(window._ncRawText && {resumeText: window._ncRawText}),
   };
 
   // Store resume if uploaded
@@ -12021,6 +11988,868 @@ function openNewTaskModal() {
   if(typeof openAddTask === 'function') openAddTask();
   else showToast('Navigate to Tasks to create a task');
 }
+
+
+// ============================================================
+// RESUME PARSER — integrated from ats_resume_parser.html
+// Pure functions, no DOM side effects
+// ============================================================
+// ============================================================
+// TEXT NORMALISATION
+// ============================================================
+
+function rpNorm(text) {
+  return text
+    .replace(/\r/g, '')
+    .replace(/\t/g, ' ')
+    .replace(/[•·▪◦‣⦿]/g, ' ')
+    .replace(/Page\s+\d+\s+of\s+\d+/gi, '')
+    .replace(/([A-Z])\s(?=[A-Z]\s)/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function rpLines(rawText) {
+  return rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+}
+
+// ============================================================
+// SECTION INDEX HELPER
+// ============================================================
+
+const SECTION_HEADERS = [
+  'experience', 'work experience', 'professional experience', 'employment history',
+  'career history', 'working experiences', 'work history', 'professional background',
+  'education', 'skills', 'languages', 'certifications', 'projects',
+  'summary', 'profile', 'objective', 'about', 'references', 'achievements',
+  'hobbies', 'interests', 'awards', 'publications', 'volunteer'
+];
+
+function rpSecIdx(lines, sectionNames) {
+  for (let i = 0; i < lines.length; i++) {
+    const lower = lines[i].toLowerCase().trim();
+    if (sectionNames.some(s => lower === s || lower.startsWith(s + ' ') || lower.endsWith(' ' + s))) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+function rpSecBounds(lines, startIdx) {
+  // Returns slice of lines from startIdx until the next section header
+  let end = lines.length;
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    const lower = lines[i].toLowerCase().trim();
+    if (SECTION_HEADERS.some(s => lower === s || lower.startsWith(s + ':'))) {
+      end = i;
+      break;
+    }
+  }
+  return lines.slice(startIdx, end);
+}
+
+// ============================================================
+// 1. NAME — scored candidate approach
+// ============================================================
+
+const NAME_IGNORE = [
+  'resume', 'curriculum', 'vitae', 'cv', 'profile', 'summary', 'objective',
+  'contact', 'address', 'phone', 'email', 'mobile', 'tel', 'linkedin',
+  'skills', 'experience', 'education', 'references', 'page', 'www', 'http'
+];
+
+function scoreName(line) {
+  const lower = line.toLowerCase();
+  let score = 0;
+
+  // Hard disqualifiers
+  if (line.includes('@')) return -100;
+  if (line.match(/\d{4}/)) return -100;               // has a year
+  if (line.match(/^\+?\d[\d\s\-()]{7,}/)) return -100; // looks like phone
+  if (NAME_IGNORE.some(w => lower.includes(w))) return -100;
+  if (line.match(/https?:\/\//i)) return -100;
+  if (line.length < 3 || line.length > 55) return -100;
+
+  // Positive signals
+  const words = line.trim().split(/\s+/);
+  if (words.length >= 2 && words.length <= 5) score += 30; // 2-5 words typical for names
+  if (words.every(w => /^[A-Z][a-z]+(-[A-Z][a-z]+)?$/.test(w))) score += 40; // Title Case
+  if (words.every(w => /^[A-Za-z'-]+$/.test(w))) score += 20; // letters/hyphen/apostrophe only
+  if (line === line.toUpperCase() && words.length <= 4) score += 15; // ALL CAPS name
+  if (line.match(/^[A-Z][a-z]+ [A-Z][a-z]+/)) score += 10; // First Last pattern
+
+  // Penalty signals
+  if (line.includes(',')) score -= 10;
+  if (line.includes(':')) score -= 20;
+  if (line.match(/[0-9]/)) score -= 15;
+
+  return score;
+}
+
+function rpName(lines) {
+  // Only consider first 10 lines for name
+  const candidates = lines.slice(0, 10).map((line, idx) => ({
+    line,
+    score: scoreName(line) - idx * 2  // slight penalty for being further down
+  }));
+
+  candidates.sort((a, b) => b.score - a.score);
+
+  if (candidates[0] && candidates[0].score > 20) {
+    return candidates[0].line;
+  }
+  return '';
+}
+
+// ============================================================
+// 2. EXPERIENCE — calculate from date ranges
+// ============================================================
+
+const MONTH_MAP = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+  january: 1, february: 2, march: 3, april: 4, june: 6,
+  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12
+};
+
+function parseMonthYear(str) {
+  str = str.trim().toLowerCase();
+  // "present", "current", "now"
+  if (/present|current|now/i.test(str)) {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  }
+  // "Jan 2020" or "January 2020"
+  const m1 = str.match(/([a-z]+)\s+(\d{4})/);
+  if (m1 && MONTH_MAP[m1[1]]) {
+    return { year: parseInt(m1[2]), month: MONTH_MAP[m1[1]] };
+  }
+  // "2020/01" or "01/2020"
+  const m2 = str.match(/(\d{1,2})\/(\d{4})/);
+  if (m2) return { year: parseInt(m2[2]), month: parseInt(m2[1]) };
+  const m3 = str.match(/(\d{4})\/(\d{1,2})/);
+  if (m3) return { year: parseInt(m3[1]), month: parseInt(m3[2]) };
+  // Just a year
+  const m4 = str.match(/^(\d{4})$/);
+  if (m4) return { year: parseInt(m4[1]), month: 1 };
+  return null;
+}
+
+function monthDiff(from, to) {
+  return (to.year - from.year) * 12 + (to.month - from.month);
+}
+
+function extractExperienceFromDates(text) {
+  // Match patterns like: "Jan 2018 – Mar 2023" or "2018 - Present" or "01/2018 – 03/2023"
+  const rangePat = /([a-z]+\.?\s+\d{4}|\d{4}|\d{1,2}\/\d{4})\s*[-–—to]+\s*([a-z]+\.?\s+\d{4}|\d{4}|\d{1,2}\/\d{4}|present|current|now)/gi;
+  const matches = [...text.matchAll(rangePat)];
+
+  if (!matches.length) return '';
+
+  // Merge overlapping intervals to avoid double-counting
+  const intervals = [];
+  for (const m of matches) {
+    const from = parseMonthYear(m[1]);
+    const to = parseMonthYear(m[2]);
+    if (from && to && to.year >= from.year) {
+      intervals.push([
+        from.year * 12 + from.month,
+        to.year * 12 + to.month
+      ]);
+    }
+  }
+
+  if (!intervals.length) return '';
+
+  intervals.sort((a, b) => a[0] - b[0]);
+
+  // Merge overlapping
+  const merged = [intervals[0]];
+  for (let i = 1; i < intervals.length; i++) {
+    const last = merged[merged.length - 1];
+    if (intervals[i][0] <= last[1]) {
+      last[1] = Math.max(last[1], intervals[i][1]);
+    } else {
+      merged.push(intervals[i]);
+    }
+  }
+
+  const totalMonths = merged.reduce((sum, [s, e]) => sum + (e - s), 0);
+  const years = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+
+  if (years === 0 && months > 0) return `${months} month${months > 1 ? 's' : ''}`;
+  if (years > 0 && months === 0) return `${years} year${years > 1 ? 's' : ''}`;
+  if (years > 0) return `${years} yr${years > 1 ? 's' : ''} ${months} mo`;
+  return '';
+}
+
+function rpExp(text) {
+  // First try explicit statement
+  const explicit = [
+    /(\d+)\+?\s+years?\s+(?:of\s+)?(?:working\s+)?experience/i,
+    /experience\s+of\s+(\d+)\+?\s+years?/i
+  ];
+  for (const pat of explicit) {
+    const m = text.match(pat);
+    if (m) return m[1] + '+ years';
+  }
+  // Fall back to calculating from date ranges
+  return extractExperienceFromDates(text);
+}
+
+// ============================================================
+// 3. LOCATION — generalised pattern + known country/state list
+// ============================================================
+
+const KNOWN_GEO = [
+  // Countries
+  'Malaysia', 'Singapore', 'Indonesia', 'Philippines', 'Thailand', 'Vietnam',
+  'India', 'Pakistan', 'Sri Lanka', 'Bangladesh', 'Nepal',
+  'United Kingdom', 'UK', 'England', 'Scotland', 'Wales',
+  'United States', 'USA', 'US',
+  'Australia', 'New Zealand',
+  'Canada', 'Germany', 'France', 'Netherlands', 'Sweden', 'Switzerland',
+  'Japan', 'South Korea', 'China', 'Hong Kong', 'Taiwan', 'Macau',
+  'UAE', 'Saudi Arabia', 'Qatar', 'Bahrain', 'Kuwait', 'Oman',
+  'South Africa', 'Nigeria', 'Kenya', 'Ghana',
+  // Malaysian states
+  'Selangor', 'Kuala Lumpur', 'Penang', 'Johor', 'Perak', 'Sabah', 'Sarawak',
+  'Negeri Sembilan', 'Pahang', 'Terengganu', 'Kelantan', 'Kedah', 'Perlis', 'Melaka',
+  // Notable cities
+  'London', 'New York', 'Sydney', 'Melbourne', 'Dubai', 'Toronto', 'Vancouver',
+  'Berlin', 'Paris', 'Amsterdam', 'Zurich', 'Tokyo', 'Seoul', 'Shanghai', 'Beijing',
+  'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Hyderabad',
+  'Petaling Jaya', 'Shah Alam', 'Subang', 'Cyberjaya', 'Putrajaya', 'Klang'
+];
+
+function rpLoc(text) {
+  // Try "City, Country" or "City, State" pattern with known geo list
+  for (const geo of KNOWN_GEO) {
+    const pat = new RegExp(
+      `([A-Za-z][A-Za-z\\s]{1,30}),\\s*(${rpEscRegex(geo)})`, 'i'
+    );
+    const m = text.match(pat);
+    if (m) return m[0].trim();
+  }
+  // Try standalone geo mention near "location", "address", "based in"
+  const contextPat = /(?:location|address|based in|residing in|city)[:\s]+([A-Za-z][A-Za-z,\s]{3,40})/i;
+  const cm = text.match(contextPat);
+  if (cm) return cm[1].trim().replace(/\s+/g, ' ');
+  // Just a known geo word
+  for (const geo of KNOWN_GEO) {
+    const pat = new RegExp(`\\b${rpEscRegex(geo)}\\b`, 'i');
+    if (pat.test(text)) return geo;
+  }
+  return '';
+}
+
+function rpEscRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ============================================================
+// 4. SALARY
+// ============================================================
+
+function rpSalary(text) {
+  const patterns = [
+    /(?:expected salary|salary expectation|current salary|desired salary)[:\s]*((?:RM|MYR|SGD|HKD|USD|GBP|AUD|INR|IDR|PHP|THB)[\s]?[\d,]+(?:\s*[-–]\s*[\d,]+)?(?:\s*(?:per|\/)\s*(?:month|annum|year|mth|yr))?)/i,
+    /((?:RM|MYR|SGD|HKD|USD|GBP|AUD|INR)[\s]?[\d,]+(?:\s*[-–]\s*(?:RM|MYR|SGD|HKD|USD|GBP|AUD|INR)?[\d,]+)?)/i,
+  ];
+  for (const pat of patterns) {
+    const m = text.match(pat);
+    if (m) return m[1].trim();
+  }
+  return '';
+}
+
+// ============================================================
+// 5. NOTICE PERIOD
+// ============================================================
+
+function rpNotice(text) {
+  const patterns = [
+    /(?:notice period|available|availability)[:\s]*([^\n.]{3,50})/i,
+    /(immediately\s+available|immediate\s+joiner)/i,
+    /(\d+\s+(?:week|month|day)s?\s+notice)/i,
+    /(1|2|3|one|two|three)\s+month[s]?\s+notice/i,
+  ];
+  for (const pat of patterns) {
+    const m = text.match(pat);
+    if (m) return (m[1] || m[0]).trim();
+  }
+  // Keyword fallback
+  const keywords = ['Immediately Available', 'Immediate', '1 Month', '2 Months', '3 Months'];
+  for (const kw of keywords) {
+    if (new RegExp('\\b' + rpEscRegex(kw) + '\\b', 'i').test(text)) return kw;
+  }
+  return '';
+}
+
+// ============================================================
+// 6. TITLE + COMPANY — improved extraction
+// ============================================================
+
+const COMPANY_KEYWORDS = [
+  'sdn bhd', 'berhad', 'ltd', 'limited', 'inc', 'llc', 'plc', 'pte ltd',
+  'group', 'services', 'solutions', 'technologies', 'technology', 'consulting',
+  'bank', 'telecom', 'corporation', 'corp', 'company', 'holdings', 'ventures',
+  'industries', 'enterprise', 'enterprises', 'global', 'international', 'systems',
+  'networks', 'management', 'advisory', 'partners', 'associates'
+];
+
+const EMPLOYMENT_HEADERS = [
+  'working experiences', 'employment history', 'professional experience',
+  'experience', 'career history', 'work history', 'work experience',
+  'employment', 'professional background', 'career summary'
+];
+
+const STOP_SECTIONS = ['references', 'referees', 'hobbies', 'interests', 'achievements', 'awards'];
+
+function rpTitleCo(lines, text) {
+  let currentTitle = '';
+  let currentCompany = '';
+
+  const empIdx = rpSecIdx(lines, EMPLOYMENT_HEADERS);
+  if (empIdx === -1) return { currentTitle, currentCompany };
+
+  const sectionLines = rpSecBounds(lines, empIdx);
+
+  for (let i = 1; i < sectionLines.length; i++) {
+    const line = sectionLines[i];
+    const lower = line.toLowerCase();
+
+    if (STOP_SECTIONS.some(s => lower.includes(s))) break;
+
+    // Skip date lines, page markers, short noise
+    if (line.match(/\b\d{4}\b/) || lower.includes('page') || line.length < 3) continue;
+
+    // Pattern A: "Title (Company)" or "Company (Title)"
+    const bracketMatch = line.match(/^(.+?)\s*\((.+)\)\s*$/);
+    if (bracketMatch) {
+      const a = bracketMatch[1].trim(), b = bracketMatch[2].trim();
+      if (COMPANY_KEYWORDS.some(k => b.toLowerCase().includes(k))) {
+        currentTitle = a; currentCompany = b;
+      } else if (COMPANY_KEYWORDS.some(k => a.toLowerCase().includes(k))) {
+        currentCompany = a; currentTitle = b;
+      } else {
+        currentTitle = a; currentCompany = b;
+      }
+      break;
+    }
+
+    // Pattern B: "Title, Company" or "Company, Title"
+    const commaMatch = line.match(/^(.+?),\s+(.+)$/);
+    if (commaMatch) {
+      const left = commaMatch[1].trim(), right = commaMatch[2].trim();
+      const rightIsCompany = COMPANY_KEYWORDS.some(k => right.toLowerCase().includes(k));
+      const leftIsCompany = COMPANY_KEYWORDS.some(k => left.toLowerCase().includes(k));
+      if (rightIsCompany) { currentTitle = left; currentCompany = right; break; }
+      if (leftIsCompany) { currentCompany = left; currentTitle = right; break; }
+    }
+
+    // Pattern C: Two consecutive lines — first is company, second is title (or vice versa)
+    if (i + 1 < sectionLines.length) {
+      const next = sectionLines[i + 1];
+      const nextLower = next.toLowerCase();
+      if (!next.match(/\b\d{4}\b/) && next.length > 3) {
+        const lineIsCompany = COMPANY_KEYWORDS.some(k => lower.includes(k));
+        const nextIsCompany = COMPANY_KEYWORDS.some(k => nextLower.includes(k));
+        if (lineIsCompany && !nextIsCompany) {
+          currentCompany = line; currentTitle = next; break;
+        }
+        if (!lineIsCompany && nextIsCompany) {
+          currentTitle = line; currentCompany = next; break;
+        }
+      }
+    }
+  }
+
+  return { currentTitle, currentCompany };
+}
+
+// ============================================================
+// 7. EMPLOYMENT TYPE — context-aware
+// ============================================================
+
+function rpEmpType(text, lines) {
+  const contextPats = [
+    /(?:employment type|job type|position type|engagement type)[:\s]+([A-Za-z\-\s]+)/i,
+    /(?:seeking|looking for|open to|available for)\s+([A-Za-z\-\s]+?)\s+(?:position|role|opportunity|job)/i,
+  ];
+  for (const pat of contextPats) {
+    const m = text.match(pat);
+    if (m) {
+      const val = m[1].trim();
+      const types = ['Permanent', 'Contract', 'Internship', 'Freelance', 'Part-Time', 'Full-Time'];
+      for (const t of types) {
+        if (val.toLowerCase().includes(t.toLowerCase())) return t;
+      }
+    }
+  }
+  // Fallback: look for type in dedicated section or near keywords
+  const secIdx = lines.findIndex(l => /employment type|job type/i.test(l));
+  if (secIdx !== -1 && secIdx + 1 < lines.length) {
+    const next = lines[secIdx + 1];
+    const types = ['Permanent', 'Contract', 'Internship', 'Freelance', 'Part-Time', 'Full-Time'];
+    for (const t of types) {
+      if (next.toLowerCase().includes(t.toLowerCase())) return t;
+    }
+  }
+  return '';
+}
+
+// ============================================================
+// 8. PORTFOLIO — smart extraction (excludes email domains, known socials)
+// ============================================================
+
+const SOCIAL_DOMAINS = ['linkedin.com', 'github.com', 'twitter.com', 'facebook.com',
+  'instagram.com', 'youtube.com', 'medium.com', 'behance.net', 'dribbble.com'];
+
+function rpPortfolio(text) {
+  const urlPat = /https?:\/\/(?:www\.)?([A-Za-z0-9\-]+\.[A-Za-z0-9\-.]+)(?:\/[^\s]*)?\b/gi;
+  const matches = [...text.matchAll(urlPat)];
+  for (const m of matches) {
+    const domain = m[1].toLowerCase();
+    if (!SOCIAL_DOMAINS.some(s => domain.includes(s))) {
+      return m[0];
+    }
+  }
+  // Non-http URL that looks like a personal site
+  const shortPat = /\bwww\.([A-Za-z0-9\-]+\.[A-Za-z]{2,})\b/i;
+  const sm = text.match(shortPat);
+  if (sm) {
+    const domain = sm[1].toLowerCase();
+    if (!SOCIAL_DOMAINS.some(s => domain.includes(s))) return sm[0];
+  }
+  return '';
+}
+
+// ============================================================
+// 9. SKILLS — expanded multi-domain database
+// ============================================================
+
+const SKILLS_DB = {
+  'Office & Productivity': ['Microsoft Office', 'Excel', 'Word', 'PowerPoint', 'Outlook',
+    'Google Sheets', 'Google Docs', 'Pivot Table', 'VBA', 'Power BI', 'Tableau'],
+  'HR & People': ['HRIS', 'Payroll', 'Compensation', 'Benefits', 'Recruitment',
+    'Talent Acquisition', 'Performance Management', 'Employee Relations', 'HRMS',
+    'Workday', 'SuccessFactors', 'BambooHR'],
+  'Business': ['Stakeholder Management', 'Business Development', 'CRM', 'Salesforce',
+    'Account Management', 'Project Management', 'Agile', 'Scrum', 'JIRA', 'Confluence',
+    'Business Analysis', 'Requirements Gathering'],
+  'Data & Analytics': ['Data Management', 'Reporting', 'Analysis', 'SQL', 'SPSS',
+    'Power BI', 'Tableau', 'Data Analysis', 'Data Science', 'Machine Learning',
+    'Python', 'R', 'Statistics'],
+  'Finance & ERP': ['SAP', 'Oracle', 'ERP', 'Accounting', 'Financial Reporting',
+    'Budgeting', 'Forecasting', 'QuickBooks', 'Xero', 'NetSuite', 'Dynamics 365'],
+  'Tech & Dev': ['JavaScript', 'Python', 'Java', 'C#', 'C++', 'PHP', 'Ruby', 'Go',
+    'TypeScript', 'React', 'Angular', 'Vue', 'Node.js', 'Django', 'Laravel', 'Spring',
+    'AWS', 'Azure', 'GCP', 'Docker', 'Kubernetes', 'Git', 'Linux', 'REST API', 'GraphQL',
+    'MySQL', 'PostgreSQL', 'MongoDB', 'Redis'],
+  'Marketing': ['SEO', 'SEM', 'Google Ads', 'Facebook Ads', 'Content Marketing',
+    'Email Marketing', 'Social Media', 'HubSpot', 'Marketing Automation', 'Analytics',
+    'Google Analytics', 'Copywriting', 'Brand Management'],
+  'Design': ['Figma', 'Adobe XD', 'Photoshop', 'Illustrator', 'InDesign', 'Sketch',
+    'UI/UX', 'Canva', 'AutoCAD'],
+  'Operations': ['Supply Chain', 'Logistics', 'Warehouse Management', 'Procurement',
+    'Vendor Management', 'Quality Assurance', 'ISO', 'Six Sigma', 'Lean'],
+  'Customer Service': ['Customer Service', 'Customer Success', 'Call Centre', 'Help Desk',
+    'Zendesk', 'Freshdesk', 'Ticketing System'],
+};
+
+function rpSkills(text) {
+  const found = [];
+  const lowerText = text.toLowerCase();
+  for (const skills of Object.values(SKILLS_DB)) {
+    for (const skill of skills) {
+      if (lowerText.includes(skill.toLowerCase()) && !found.includes(skill)) {
+        found.push(skill);
+      }
+    }
+  }
+  return found;
+}
+
+// ============================================================
+// 10. LANGUAGES
+// ============================================================
+
+const LANGUAGE_DB = [
+  'English', 'Malay', 'Bahasa Malaysia', 'Bahasa Indonesia', 'Mandarin',
+  'Chinese', 'Cantonese', 'Hokkien', 'Hakka', 'Tamil', 'Hindi', 'Telugu',
+  'Bengali', 'Japanese', 'Korean', 'French', 'German', 'Spanish', 'Italian',
+  'Portuguese', 'Arabic', 'Thai', 'Vietnamese', 'Tagalog', 'Filipino',
+  'Sinhalese', 'Burmese', 'Khmer'
+];
+
+function rpLangs(text, lines) {
+  const detected = [];
+  const langIdx = lines.findIndex(l => /\blanguages?\b/i.test(l));
+  let searchText = text;
+  if (langIdx !== -1) {
+    // Prioritise language section
+    searchText = lines.slice(langIdx, langIdx + 15).join(' ');
+  }
+  for (const lang of LANGUAGE_DB) {
+    if (new RegExp('\\b' + rpEscRegex(lang) + '\\b', 'i').test(searchText)) {
+      detected.push(lang);
+    }
+  }
+  return [...new Set(detected)];
+}
+
+// ============================================================
+// 11. SENIORITY — from title
+// ============================================================
+
+const SENIORITY_MAP = [
+  { keys: ['intern', 'trainee', 'graduate'], label: 'Intern / Graduate' },
+  { keys: ['junior', 'assistant', 'associate', 'officer', 'coordinator', 'executive'], label: 'Junior' },
+  { keys: ['specialist', 'analyst', 'consultant', 'engineer'], label: 'Mid-Level' },
+  { keys: ['senior', 'sr.'], label: 'Senior' },
+  { keys: ['lead', 'principal', 'staff'], label: 'Lead' },
+  { keys: ['manager', 'supervisor'], label: 'Manager' },
+  { keys: ['head', 'president', 'vice president', 'vp', 'avp', 'svp'], label: 'Leadership' },
+  { keys: ['director', 'cto', 'coo', 'cfo', 'ceo', 'chief', 'partner'], label: 'Executive / Director' },
+];
+
+function rpSeniority(title) {
+  if (!title) return '';
+  const lower = title.toLowerCase();
+  for (const entry of SENIORITY_MAP) {
+    if (entry.keys.some(k => lower.includes(k))) return entry.label;
+  }
+  return '';
+}
+
+// ============================================================
+// 12. INDUSTRY
+// ============================================================
+
+const INDUSTRY_MAP = {
+  'Banking & Financial Services': ['bank', 'banking', 'financial', 'finance', 'insurance', 'fund', 'investment', 'capital', 'wealth'],
+  'Technology & Software': ['software', 'saas', 'technology', 'tech', 'developer', 'it services', 'cloud', 'cybersecurity', 'fintech'],
+  'Retail & FMCG': ['retail', 'fmcg', 'store', 'supermarket', 'consumer goods', 'e-commerce', 'ecommerce'],
+  'Healthcare & Pharma': ['hospital', 'medical', 'healthcare', 'pharma', 'pharmaceutical', 'clinic', 'health'],
+  'HR & Shared Services': ['hr', 'human resource', 'payroll', 'recruitment', 'hris', 'shared service'],
+  'Logistics & Supply Chain': ['logistics', 'supply chain', 'warehouse', 'freight', 'shipping', 'courier', 'transport'],
+  'Manufacturing': ['manufacturing', 'factory', 'production', 'assembly', 'industrial'],
+  'Education': ['university', 'college', 'school', 'education', 'training', 'academy'],
+  'Consulting': ['consulting', 'advisory', 'professional services', 'big 4', 'kpmg', 'deloitte', 'pwc', 'ey'],
+  'Telecommunications': ['telecom', 'telecommunications', 'telco', 'mobile', 'broadband'],
+  'Property & Construction': ['property', 'real estate', 'construction', 'developer', 'infrastructure'],
+  'Media & Marketing': ['media', 'advertising', 'marketing agency', 'digital agency', 'creative'],
+};
+
+function rpIndustry(text) {
+  const lower = text.toLowerCase();
+  for (const [industry, keywords] of Object.entries(INDUSTRY_MAP)) {
+    if (keywords.some(k => lower.includes(k))) return industry;
+  }
+  return '';
+}
+
+// ============================================================
+// 13. EDUCATION
+// ============================================================
+
+function rpEducation(text) {
+  const levels = [
+    { label: 'PhD / Doctorate', keys: ['phd', 'ph.d', 'doctorate', 'doctor of'] },
+    { label: 'Master\'s', keys: ['master', 'msc', 'm.sc', 'ma ', 'mba', 'm.b.a', 'master of'] },
+    { label: 'Bachelor\'s', keys: ['bachelor', 'bsc', 'b.sc', 'ba ', 'b.a', 'beng', 'b.eng', 'bcom', 'degree'] },
+    { label: 'Diploma', keys: ['diploma', 'advanced diploma'] },
+    { label: 'Certificate', keys: ['certificate', 'certification'] },
+    { label: 'SPM / Secondary', keys: ['spm', 'stpm', 'o-level', 'a-level', 'secondary'] },
+  ];
+  const lower = text.toLowerCase();
+  for (const { label, keys } of levels) {
+    if (keys.some(k => lower.includes(k))) return label;
+  }
+  return '';
+}
+
+// ============================================================
+// 14. WORK MODE
+// ============================================================
+
+function rpWorkMode(text) {
+  const lower = text.toLowerCase();
+  const patterns = [
+    { keys: ['fully remote', 'work from home', 'wfh', 'remote only'], label: 'Remote' },
+    { keys: ['hybrid'], label: 'Hybrid' },
+    { keys: ['on-site', 'onsite', 'in-office', 'office-based'], label: 'On-site' },
+    { keys: ['remote'], label: 'Remote' },
+  ];
+  for (const { keys, label } of patterns) {
+    if (keys.some(k => lower.includes(k))) return label;
+  }
+  return '';
+}
+
+// ============================================================
+
+function rpParseResume(rawText) {
+  if(!rawText || !rawText.trim()) return null;
+  const text = rpNorm(rawText);
+  const lines = rpLines(rawText);
+  const { currentTitle, currentCompany } = rpTitleCo(lines, text);
+  return {
+    name:           rpName(lines),
+    email:          (text.match(/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i)||[''])[0],
+    phone:          ((text.match(/(\+?\d[\d\s\-()/]{7,16}\d)/)||[''])[0]||'').trim(),
+    location:       rpLoc(text),
+    experience:     rpExp(text),
+    salary:         rpSalary(text),
+    notice:         rpNotice(text),
+    currentTitle,
+    currentCompany,
+    seniority:      rpSeniority(currentTitle),
+    skills:         rpSkills(text),
+    languages:      rpLangs(text, lines),
+    linkedin:       (text.match(/(https?:\/\/)?(www\.)?linkedin\.com\/in\/[A-Za-z0-9\-_%/]+/i)||[''])[0],
+    github:         (text.match(/(https?:\/\/)?(www\.)?github\.com\/[A-Za-z0-9\-_%/]+/i)||[''])[0],
+    portfolio:      rpPortfolio(text),
+    employmentType: rpEmpType(text, lines),
+    industry:       rpIndustry(text),
+    education:      rpEducation(text),
+    workMode:       rpWorkMode(text),
+  };
+}
+
+
+// ===================== ADD CANDIDATE 3-STEP FLOW =====================
+
+function ncStepProgress(step) {
+  // step: 1, 2, 3
+  const steps = ['Upload Resume','Review Fields','Confirm'];
+  return `<div style="display:flex;align-items:center;gap:0;margin-bottom:18px;">` +
+    steps.map((s,i) => {
+      const num = i+1;
+      const active = num === step;
+      const done = num < step;
+      return `<div style="display:flex;align-items:center;flex:${num<3?'1':'0'};">
+        <div style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
+          <div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;
+            background:${done?'var(--green)':active?'var(--accent)':'var(--bg3)'};
+            color:${done||active?'#fff':'var(--text3)'};">
+            ${done?'✓':num}
+          </div>
+          <span style="font-size:12px;font-weight:${active?'700':'500'};color:${active?'var(--text)':'var(--text3)'};">${s}</span>
+        </div>
+        ${num<3?`<div style="flex:1;height:1px;background:${done?'var(--green)':'var(--border)'};margin:0 10px;"></div>`:''}
+      </div>`;
+    }).join('') + `</div>`;
+}
+
+function ncShowStep1() {
+  const body = document.getElementById('modal-body');
+  const footer = document.getElementById('modal-footer');
+  if(!body || !footer) return;
+  document.getElementById('modal-title').textContent = 'Add Candidate';
+
+  body.innerHTML = ncStepProgress(1) + `
+    <div id="nc-s1-dropzone" style="border:2px dashed var(--border2);border-radius:12px;padding:32px 20px;text-align:center;cursor:pointer;transition:all 0.15s;background:var(--bg3);margin-bottom:16px;"
+      ondragover="this.style.borderColor='var(--accent)';this.style.background='var(--accent-dim)';event.preventDefault();"
+      ondragleave="this.style.borderColor='var(--border2)';this.style.background='var(--bg3)';"
+      ondrop="ncS1Drop(event)"
+      onclick="document.getElementById('nc-s1-file').click()">
+      <div id="nc-s1-icon" style="margin-bottom:10px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>
+      </div>
+      <div id="nc-s1-label" style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;">Drop resume here or click to browse</div>
+      <div style="font-size:11.5px;color:var(--text3);">PDF · DOCX · TXT · Max 20MB</div>
+      <input type="file" id="nc-s1-file" accept=".pdf,.docx,.txt,application/pdf" style="display:none" onchange="ncS1FileChange(this.files[0])">
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+      <span style="font-size:11px;color:var(--text3);">or paste resume text</span>
+      <div style="flex:1;height:1px;background:var(--border);"></div>
+    </div>
+
+    <textarea id="nc-s1-text" style="width:100%;height:130px;font-size:12px;font-family:monospace;resize:vertical;" placeholder="Paste full resume text here..."></textarea>
+  `;
+
+  footer.innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-ghost" style="margin-left:auto;" onclick="ncSkipToManual()">Skip — fill manually</button>
+    <button class="btn btn-primary" id="nc-s1-parse-btn" onclick="ncParseAndNext()" disabled style="opacity:0.5;">
+      Parse Resume →
+    </button>`;
+
+  // Watch textarea to enable parse button
+  const ta = document.getElementById('nc-s1-text');
+  if(ta) ta.addEventListener('input', () => {
+    const hasText = ta.value.trim().length > 20;
+    const btn = document.getElementById('nc-s1-parse-btn');
+    if(btn) { btn.disabled = !hasText; btn.style.opacity = hasText ? '1' : '0.5'; }
+  });
+}
+
+async function ncS1FileChange(file) {
+  if(!file) return;
+  if(file.size > 20*1024*1024) { showToast('File too large — max 20MB'); return; }
+  const label = document.getElementById('nc-s1-label');
+  if(label) label.textContent = 'Reading ' + file.name + '...';
+
+  // Also store b64 for Cloudinary upload later
+  const b64 = await new Promise(res => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result.split(',')[1]);
+    r.readAsDataURL(file);
+  });
+  currentResumeB64 = b64;
+  currentResumeType = file.type || 'application/pdf';
+  currentResumeFilename = file.name;
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  let text = '';
+
+  try {
+    if(ext === 'pdf') {
+      const bin = atob(b64);
+      const arr = new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdf = await pdfjsLib.getDocument({data:arr}).promise;
+      for(let p=1;p<=pdf.numPages;p++) {
+        const page = await pdf.getPage(p);
+        const c = await page.getTextContent();
+        let lastY = null;
+        c.items.forEach(item => {
+          if(lastY !== null && Math.abs(item.transform[5]-lastY) > 2) text += '\n';
+          text += item.str + ' ';
+          lastY = item.transform[5];
+        });
+        text += '\n';
+      }
+    } else if(ext === 'docx' && window.mammoth) {
+      const buf = await new Promise((res,rej) => {
+        const r = new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej;
+        r.readAsArrayBuffer(file);
+      });
+      const result = await mammoth.extractRawText({arrayBuffer:buf});
+      text = result.value;
+    } else if(ext === 'txt') {
+      text = await new Promise((res,rej) => {
+        const r = new FileReader(); r.onload=e=>res(e.target.result); r.onerror=rej;
+        r.readAsText(file);
+      });
+    }
+  } catch(e) { console.warn('File read error:', e); showToast('Could not read file — try pasting the text instead'); return; }
+
+  const ta = document.getElementById('nc-s1-text');
+  if(ta) { ta.value = text.trim(); ta.dispatchEvent(new Event('input')); }
+
+  const icon = document.getElementById('nc-s1-icon');
+  if(icon) icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+  if(label) label.textContent = file.name + ' ready';
+
+  const dz = document.getElementById('nc-s1-dropzone');
+  if(dz) { dz.style.borderColor = 'var(--green)'; dz.style.background = 'rgba(52,211,153,0.06)'; }
+}
+
+function ncS1Drop(e) {
+  e.preventDefault();
+  const dz = document.getElementById('nc-s1-dropzone');
+  if(dz) { dz.style.borderColor = 'var(--border2)'; dz.style.background = 'var(--bg3)'; }
+  const file = e.dataTransfer?.files?.[0];
+  if(file) ncS1FileChange(file);
+}
+
+async function ncParseAndNext() {
+  const rawText = (document.getElementById('nc-s1-text')?.value || '').trim();
+  if(!rawText) { showToast('Please upload or paste a resume first'); return; }
+  window._ncRawText = rawText;
+
+  const btn = document.getElementById('nc-s1-parse-btn');
+  if(btn) { btn.textContent = 'Parsing...'; btn.disabled = true; }
+
+  // Parse (synchronous — regex based, instant)
+  const parsed = rpParseResume(rawText);
+  if(btn) { btn.textContent = 'Parse Resume →'; btn.disabled = false; }
+
+  ncShowStep2(parsed);
+}
+
+function ncShowStep2(parsed) {
+  const body = document.getElementById('modal-body');
+  const footer = document.getElementById('modal-footer');
+  if(!body || !footer) return;
+
+  const jobOptions = jobs.map(j=>`<option value="${j.id}">${escapeHtml(j.title)}</option>`).join('');
+  const stageOptions = stages.map(s=>`<option>${s}</option>`).join('');
+  const sourceOptions = getCandidateSources().map(s=>`<option>${escapeHtml(s)}</option>`).join('');
+
+  const p = parsed || {};
+
+  body.innerHTML = ncStepProgress(2) + `
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Review and edit the parsed fields before saving. Everything is editable.</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="form-group" style="margin:0;"><label>Full Name *</label><input type="text" id="nc-name" value="${escapeHtml(p.name||'')}" placeholder="Full name"></div>
+      <div class="form-group" style="margin:0;"><label>Email</label><input type="email" id="nc-email" value="${escapeHtml(p.email||'')}" placeholder="email@example.com"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="form-group" style="margin:0;"><label>Phone</label><input type="text" id="nc-phone" value="${escapeHtml(p.phone||'')}" placeholder="Phone number"></div>
+      <div class="form-group" style="margin:0;"><label>Location</label><input type="text" id="nc-location" value="${escapeHtml(p.location||'')}" placeholder="City or Remote"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="form-group" style="margin:0;"><label>Current Title</label><input type="text" id="nc-title" value="${escapeHtml(p.currentTitle||'')}" placeholder="e.g. Senior Engineer"></div>
+      <div class="form-group" style="margin:0;"><label>Experience</label><input type="text" id="nc-exp" value="${escapeHtml(p.experience||'')}" placeholder="e.g. 5 yrs"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="form-group" style="margin:0;"><label>Apply For</label><select id="nc-job">${jobOptions}</select></div>
+      <div class="form-group" style="margin:0;"><label>Stage</label><select id="nc-stage">${stageOptions}</select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="form-group" style="margin:0;"><label>Source</label><select id="nc-source">${sourceOptions}</select></div>
+      <div class="form-group" style="margin:0;"><label>Seniority</label><input type="text" id="nc-seniority" value="${escapeHtml(p.seniority||'')}" placeholder="e.g. Senior"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="form-group" style="margin:0;"><label>Expected Salary</label><input type="text" id="nc-salary" value="${escapeHtml(p.salary||'')}" placeholder="e.g. 8000/mo"></div>
+      <div class="form-group" style="margin:0;"><label>Notice Period</label><input type="text" id="nc-notice" value="${escapeHtml(p.notice||'')}" placeholder="e.g. 1 month"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="form-group" style="margin:0;"><label>Education</label><input type="text" id="nc-education" value="${escapeHtml(p.education||'')}" placeholder="e.g. Bachelor's"></div>
+      <div class="form-group" style="margin:0;"><label>LinkedIn</label><input type="text" id="nc-linkedin" value="${escapeHtml(p.linkedin||'')}" placeholder="linkedin.com/in/..."></div>
+    </div>
+    <div class="form-group" style="margin-bottom:10px;"><label>Skills (comma separated)</label>
+      <input type="text" id="nc-skills" value="${escapeHtml((p.skills||[]).join(', '))}" placeholder="React, Python, SQL">
+    </div>
+    <div class="form-group" style="margin-bottom:0;"><label>Notes</label>
+      <textarea id="nc-notes" style="height:70px;" placeholder="Additional notes...">${escapeHtml((p.notice&&p.salary)?`Notice: ${p.notice} · Salary: ${p.salary}`:'')}</textarea>
+    </div>
+  `;
+
+  footer.innerHTML = `
+    <button class="btn btn-ghost" onclick="ncShowStep1()">← Back</button>
+    <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveCandidate()">Save Candidate →</button>
+  `;
+}
+
+function ncSkipToManual() {
+  // Show step 2 with empty fields
+  ncShowStep2(null);
+}
+
+function ncHandleDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer?.files?.[0];
+  if(file) ncS1FileChange(file);
+}
+
+async function ncHandleFile(file) {
+  if(file) ncS1FileChange(file);
+}
+// ===================== END ADD CANDIDATE 3-STEP FLOW =====================
 
 function showToast(msg) {
   const t = document.createElement('div');
