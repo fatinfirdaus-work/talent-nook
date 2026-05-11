@@ -2793,7 +2793,7 @@ async function docsHandleFiles(files, candId) {
       if(window.saveResumeToCloud && currentUser) {
         cand.resumePath = `users/${currentUser.uid}/resumes/${candId}`;
         window.saveResumeToCloud(candId, b64, file.type, file.name)
-          .then(ok => { if(ok) refreshRightPanel(candId); })
+          .then(ok => { if(ok) { refreshRightPanel(candId); setTimeout(()=>loadInlinePdf(candId), 200); } })
           .catch(e => console.warn('Cloud upload failed', e));
       }
     }
@@ -2801,33 +2801,21 @@ async function docsHandleFiles(files, candId) {
     cand.documents.unshift(doc);
     save();
     showToast(`${file.name} uploaded`);
-
-    // Immediately render PDF in viewer from b64 — no waiting for Cloudinary
-    if(isPdf) {
-      window.pdfCandId = candId;
-      const container = document.getElementById('pdf-container');
-      if(container && window.pdfjsLib) {
-        try {
-          container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3);font-size:13px;">Loading preview...</div>';
-          pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-          const bin = atob(b64);
-          const arr = new Uint8Array(bin.length);
-          for(let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-          window.pdfDoc = await pdfjsLib.getDocument({data: arr}).promise;
-          window.pdfPage = 1;
-          window.pdfZoom = 1.0;
-          const totalEl = document.getElementById('pdf-page-total');
-          if(totalEl) totalEl.textContent = window.pdfDoc.numPages;
-          await renderPdfPage();
-        } catch(e) {
-          console.warn('PDF preview error:', e);
-        }
-      }
-    }
   }
 
   if(status) status.innerHTML = '';
-  openManageDocs(candId);
+  openManageDocs(candId); // refresh modal doc list
+
+  // Refresh right panel so doc count badge updates immediately
+  refreshRightPanel(candId);
+
+  // Load PDF into viewer immediately from b64 in documents array
+  // (uses module-scope pdfDoc/pdfCandId so renderPdfPage works correctly)
+  const freshCand = getCand(candId);
+  if(freshCand?.hasResume) {
+    // Short delay so refreshRightPanel has rebuilt the pdf-container DOM
+    setTimeout(() => loadInlinePdf(candId), 300);
+  }
 }
 
 function deleteCandDoc(candId, idx) {
@@ -5681,15 +5669,25 @@ function openEmailTemplateEditor(tplId) {
   ];
 
   const s = getSettings();
+  // Pull real data for preview where available, fall back to generic placeholders
+  const firstCand = candidates.find(c => c.name && c.email);
+  const firstJob  = jobs.find(j => j.title);
+  const nextInterview = interviews.find(iv => iv.date >= new Date().toISOString().split('T')[0]);
   const SAMPLE = {
-    candidate_name: 'Ahmad Razif', candidate_email: 'ahmad@email.com',
-    job_title: 'Senior HR Specialist', company_name: s.companyName || 'Your Company',
-    sender_name: s.yourName || 'HR Team',
-    interviewer_name: 'Dave Chik', interview_date: '2026-04-10',
-    interview_time: '10:00 AM', interview_duration: '30 minutes',
-    interview_type: 'Video Call', salary: '6,500',
-    start_date: '2026-05-01', offer_expiry: '2026-04-15',
-    location: 'Petaling Jaya, Malaysia',
+    candidate_name:    firstCand?.name  || 'Candidate Name',
+    candidate_email:   firstCand?.email || 'candidate@email.com',
+    job_title:         firstJob?.title  || 'Job Title',
+    company_name:      s.companyName    || 'Your Company',
+    sender_name:       s.yourName       || s.companyName || 'HR Team',
+    interviewer_name:  nextInterview?.interviewer || s.yourName || 'Interviewer Name',
+    interview_date:    nextInterview?.date || new Date(Date.now()+7*86400000).toISOString().split('T')[0],
+    interview_time:    nextInterview?.time || '10:00 AM',
+    interview_duration: nextInterview?.duration || '45 minutes',
+    interview_type:    nextInterview?.type || 'Video Call',
+    salary:            firstJob?.salaryRange || 'Salary',
+    start_date:        new Date(Date.now()+30*86400000).toISOString().split('T')[0],
+    offer_expiry:      new Date(Date.now()+14*86400000).toISOString().split('T')[0],
+    location:          firstJob?.location || s.companyLocation || 'Location',
   };
 
   const panel = document.getElementById('stpl-editor-panel');
@@ -5697,28 +5695,28 @@ function openEmailTemplateEditor(tplId) {
 
   const VAR_GROUPS = [
     { label:'Candidate', color:'#4f8ef7', vars:[
-      {key:'candidate_name',label:'Full Name',example:'Ahmad Razif'},
-      {key:'candidate_email',label:'Email',example:'ahmad@email.com'},
+      {key:'candidate_name',  label:'Full Name', example: firstCand?.name  || 'Candidate Name'},
+      {key:'candidate_email', label:'Email',     example: firstCand?.email || 'candidate@email.com'},
     ]},
     { label:'Job', color:'#a78bfa', vars:[
-      {key:'job_title',label:'Job Title',example:'Senior Designer'},
-      {key:'company_name',label:'Company',example:'Your Company'},
-      {key:'location',label:'Location',example:'Petaling Jaya'},
-      {key:'salary',label:'Salary',example:'RM 8,000'},
+      {key:'job_title',    label:'Job Title', example: firstJob?.title     || 'Job Title'},
+      {key:'company_name', label:'Company',   example: s.companyName       || 'Your Company'},
+      {key:'location',     label:'Location',  example: firstJob?.location  || 'Location'},
+      {key:'salary',       label:'Salary',    example: firstJob?.salaryRange || 'Salary'},
     ]},
     { label:'Interview', color:'#fbbf24', vars:[
-      {key:'interview_date',label:'Date',example:'2026-05-01'},
-      {key:'interview_time',label:'Time',example:'10:00 AM'},
-      {key:'interview_type',label:'Format',example:'Video Call'},
-      {key:'interview_duration',label:'Duration',example:'45 min'},
-      {key:'interviewer_name',label:'Interviewer',example:'Fatin Firdaus'},
+      {key:'interview_date',     label:'Date',       example: SAMPLE.interview_date},
+      {key:'interview_time',     label:'Time',        example: '10:00 AM'},
+      {key:'interview_type',     label:'Format',      example: 'Video Call'},
+      {key:'interview_duration', label:'Duration',    example: '45 min'},
+      {key:'interviewer_name',   label:'Interviewer', example: s.yourName || 'Interviewer Name'},
     ]},
     { label:'Offer', color:'#34d399', vars:[
-      {key:'start_date',label:'Start Date',example:'2026-06-01'},
-      {key:'offer_expiry',label:'Expiry',example:'2026-05-10'},
+      {key:'start_date',   label:'Start Date', example: SAMPLE.start_date},
+      {key:'offer_expiry', label:'Expiry',     example: SAMPLE.offer_expiry},
     ]},
     { label:'Sender', color:'#f472b6', vars:[
-      {key:'sender_name',label:'Your Name',example:'Fatin Firdaus'},
+      {key:'sender_name', label:'Your Name', example: s.yourName || s.companyName || 'Your Name'},
     ]},
   ];
   const varChips = VAR_GROUPS.map(g =>
@@ -6535,7 +6533,10 @@ function buildInterviewsHTML(c, allInterviews, allFeedback) {
   }
 
   allInterviews.forEach((iv, idx) => {
-    const ivFeedback = allFeedback.filter(fb => fb.round === iv.round).slice().sort((a,b)=>new Date(b.createdAt||b.date||0)-new Date(a.createdAt||a.date||0));
+    // Filter feedback by interview ID first (precise), fall back to round name (legacy)
+    const ivFeedback = allFeedback.filter(fb =>
+      fb.ivId ? String(fb.ivId) === String(iv.id) : fb.round === iv.round
+    ).slice().sort((a,b)=>new Date(b.createdAt||b.date||0)-new Date(a.createdAt||a.date||0));
     const ac = colors[idx % colors.length];
     const initials = (iv.interviewer||'?').split(',')[0].trim().split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase() || '?';
     const statusBadge = iv.status==='Completed'?'badge-green':iv.status==='Cancelled'?'badge-red':'badge-blue';
@@ -6630,13 +6631,14 @@ function buildInterviewsHTML(c, allInterviews, allFeedback) {
     // Action buttons
     if(iv.status !== 'Cancelled' && iv.status !== 'Completed') {
       html += '<div style="padding:8px 16px 12px;display:flex;gap:6px;background:var(--bg3);">';
-      html += '<button class="btn btn-primary btn-sm" onclick="openAddFeedbackRound(' + c.id + ',\'' + iv.round.replace(/'/g,"\\'") + '\',\'' + (iv.interviewer||'').split(',')[0].trim().replace(/'/g,"\\'") + '\')">Add Feedback</button>';
+      html += '<button class="btn btn-primary btn-sm" onclick="openAddFeedbackRound(' + c.id + ',\'' + iv.round.replace(/'/g,"\\'") + '\',\'' + (iv.interviewer||'').split(',')[0].trim().replace(/'/g,"\\'") + '\',' + (iv.id||0) + ')">Add Feedback</button>';
       html += '<button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="cancelInterview(' + c.id + ',' + realIdx + ');refreshRightPanel(' + c.id + ')">✕ Cancel</button>';
       html += '</div>';
     } else if(iv.status !== 'Cancelled') {
       // Completed — show add more feedback option
       html += '<div style="padding:6px 16px 10px;background:var(--bg3);">';
-      html += '<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openAddFeedbackRound(' + c.id + ',\'' + iv.round.replace(/'/g,"\\'") + '\',\'' + (iv.interviewer||'').split(',')[0].trim().replace(/'/g,"\\'") + '\')">+ Add more feedback</button>';
+      html += '<button class="btn btn-ghost btn-sm" style="font-size:11px;" onclick="openAddFeedbackRound(' + c.id + ',\'' + iv.round.replace(/'/g,"\\'") + '\',' + (iv.id||0) + ')">+ Add Feedback</button>';
+      html += '<span style="font-size:10px;color:var(--text3);margin-left:8px;">Each interviewer submits separately</span>';
       html += '</div>';
     }
 
@@ -6857,6 +6859,9 @@ function renderCandProfileContent(id, fromJobId=null) {
   el.innerHTML =
     // ── SLIM TOPBAR ──
     '<div style="padding:8px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg2);flex-shrink:0;">' +
+    '<button id="cp-left-toggle" title="Toggle left panel" onclick="toggleCpLeft()" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:3px 6px;border-radius:5px;transition:all 0.12s;flex-shrink:0;" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'\'">' +
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>' +
+    '</button>' +
     '<span style="cursor:pointer;color:var(--text3);font-size:13px;" onclick="showPage(\'candidates\',null)">← Return</span>' +
     '<span style="color:var(--border2);margin:0 2px;">|</span>' +
     '<span style="font-size:13px;font-weight:600;color:var(--text);">' + escapeHtml(c.name) + '</span>' +
@@ -7037,7 +7042,7 @@ function renderCandProfileContent(id, fromJobId=null) {
       const layoutRect = layout.getBoundingClientRect();
       const totalW = layoutRect.width;
       let leftW = e.clientX - layoutRect.left;
-      leftW = Math.max(320, Math.min(totalW - 280, leftW)); // min left 320, min right 280
+      leftW = Math.max(0, Math.min(totalW - 280, leftW)); // allow full collapse
       const rightW = totalW - leftW;
       layout.style.gridTemplateColumns = leftW + 'px ' + rightW + 'px';
       // Position divider
@@ -7348,6 +7353,34 @@ function buildHistoryHTML(c, allInterviews, allFeedback) {
     h += '<div class="history-item" style="padding:14px 24px;border-bottom:1px solid var(--border);"><div style="background:var(--purple-dim);color:var(--purple);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div><div style="flex:1;"><div style="font-size:13px;font-weight:600;">Feedback by ' + fb.interviewer + ' — <span style="color:' + rc + '">' + fb.recommendation + '</span></div><div style="font-size:11px;color:var(--text3);font-family:JetBrains Mono,monospace;">' + formatDateTime(fb.createdAt||fb.date) + ' · ' + fb.round + '</div></div></div>';
   });
   return h;
+}
+
+function toggleCpLeft() {
+  const layout = document.getElementById('cp-layout');
+  const leftPanel = document.getElementById('cp-left-panel');
+  const divider = document.getElementById('cp-divider');
+  const btn = document.getElementById('cp-left-toggle');
+  if(!layout || !leftPanel) return;
+
+  const cols = getComputedStyle(layout).gridTemplateColumns;
+  const leftW = parseFloat(cols.split(' ')[0]);
+  const isCollapsed = leftW < 30;
+
+  if(isCollapsed) {
+    // Expand to default
+    const totalW = layout.getBoundingClientRect().width;
+    const newLeft = Math.round(totalW * 0.55);
+    layout.style.gridTemplateColumns = newLeft + 'px ' + (totalW - newLeft) + 'px';
+    leftPanel.style.display = '';
+    if(divider) divider.style.left = (newLeft - 3) + 'px';
+    if(btn) btn.style.color = 'var(--text3)';
+  } else {
+    // Collapse — hide left panel
+    leftPanel.style.display = 'none';
+    layout.style.gridTemplateColumns = '0px 1fr';
+    if(divider) divider.style.left = '-3px';
+    if(btn) btn.style.color = 'var(--accent)';
+  }
 }
 
 function switchLeftTab(el, tabId) {
@@ -7702,7 +7735,7 @@ function openAddFeedback(id) {
   openAddFeedbackRound(id, '', '');
 }
 
-function openAddFeedbackRound(id, preRound, preInterviewer) {
+function openAddFeedbackRound(id, preRound, preInterviewer, ivId) {
   const c = getCand(id); if(!c) return;
   document.getElementById('modal-title').innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Interview Feedback — ' + c.name;
   document.getElementById('modal-body').innerHTML = `
@@ -7790,6 +7823,7 @@ function openAddFeedbackRound(id, preRound, preInterviewer) {
   // Init competency bars to 3
   setTimeout(()=>{ COMPETENCIES.forEach(s=>setComp(s,3)); }, 50);
 
+  document.getElementById('modal-body').insertAdjacentHTML('beforeend', '<input type="hidden" id="fb-iv-id" value="' + (ivId||'') + '">');
   document.getElementById('modal-footer').innerHTML = `
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn btn-primary" onclick="saveFeedback(${id})"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Submit Feedback</button>`;
@@ -7839,11 +7873,14 @@ function saveFeedback(id) {
 
   saveInterviewerName(interviewer);
   if(!c.feedback) c.feedback=[];
-  c.feedback.push({ interviewer, round, date, rating, recommendation, notes, strengths, concerns, skillRatings, createdAt: new Date().toISOString() });
+  const ivId = document.getElementById('fb-iv-id')?.value || '';
+  c.feedback.push({ interviewer, round, date, rating, recommendation, notes, strengths, concerns, skillRatings, ivId, createdAt: new Date().toISOString() });
   addToTimeline(c, `${round} feedback by ${interviewer} — ${recommendation}`, 'var(--purple)');
   activities.unshift({ text:`<strong>${interviewer}</strong> submitted feedback for <strong>${c.name}</strong> — <strong>${recommendation}</strong>`, color:'var(--purple)', ts:Date.now() });
-  // Auto-mark the matching interview as Completed
-  const matchIv = (c.interviews||[]).find(iv => iv.round === round && iv.status !== 'Cancelled' && iv.status !== 'Completed');
+  // Auto-mark the specific interview as Completed (match by ivId first, fallback to round)
+  const matchIv = ivId
+    ? (c.interviews||[]).find(iv => String(iv.id) === String(ivId))
+    : (c.interviews||[]).find(iv => iv.round === round && iv.status !== 'Cancelled' && iv.status !== 'Completed');
   if(matchIv) matchIv.status = 'Completed';
 
   save();
@@ -9816,21 +9853,27 @@ function saveCandidate() {
   // Store resume if uploaded
   if(currentResumeB64) {
     try {
-      localStorage.setItem(`tf_resume_${newId}`, JSON.stringify({
-        b64: currentResumeB64, type: currentResumeType, filename: currentResumeFilename
-      }));
+      const isPdf = (currentResumeType||'').includes('pdf') || (currentResumeFilename||'').toLowerCase().endsWith('.pdf');
+      // Store b64 in documents array so loadInlinePdf step 3 fallback works immediately
+      if(!newCand.documents) newCand.documents = [];
+      newCand.documents.unshift({
+        name: currentResumeFilename,
+        type: currentResumeType || 'application/pdf',
+        b64: currentResumeB64,
+        uploadedAt: Date.now(),
+        label: 'Resume v1',
+      });
       newCand.hasResume = true;
       newCand.resumeFilename = currentResumeFilename;
       newCand.resumeType = currentResumeType;
-      // Upload to Firebase Storage (non-blocking)
+      newCand.resumeUrl = null; // will be set by Cloudinary
+      // Upload to Cloudinary (non-blocking)
       if(window.saveResumeToCloud && currentUser) {
-        // Set path optimistically before save() runs
         newCand.resumePath = `users/${currentUser.uid}/resumes/${newId}`;
         window.saveResumeToCloud(newId, currentResumeB64, currentResumeType, currentResumeFilename)
-          .then(() => save()) // re-save after upload to confirm resumePath in Firestore
           .catch(e => console.warn('Cloud resume upload failed:', e));
       }
-    } catch(e) { console.warn('Resume too large to store', e); }
+    } catch(e) { console.warn('Resume save error:', e); }
     currentResumeB64 = null; currentResumeType = null; currentResumeFilename = null;
   }
 
@@ -12311,12 +12354,17 @@ function rpEscRegex(s) {
 
 function rpSalary(text) {
   const patterns = [
-    /(?:expected salary|salary expectation|current salary|desired salary)[:\s]*((?:RM|MYR|SGD|HKD|USD|GBP|AUD|INR|IDR|PHP|THB)[\s]?[\d,]+(?:\s*[-–]\s*[\d,]+)?(?:\s*(?:per|\/)\s*(?:month|annum|year|mth|yr))?)/i,
-    /((?:RM|MYR|SGD|HKD|USD|GBP|AUD|INR)[\s]?[\d,]+(?:\s*[-–]\s*(?:RM|MYR|SGD|HKD|USD|GBP|AUD|INR)?[\d,]+)?)/i,
+    /(?:expected salary|salary expectation|current salary|desired salary|expected ctc|current ctc)[:\s]*((?:RM|MYR|SGD|HKD|USD|GBP|AUD|INR|IDR|PHP|THB)[\s]?[\d,]+(?:\s*[-–]\s*[\d,]+)?(?:\s*(?:per|\/)\s*(?:month|annum|year|mth|yr))?)/i,
+    // Only match currency+number if followed by digits (e.g. RM 8000, not just "RM,")
+    /((?:RM|MYR|SGD|HKD|USD|GBP|AUD|INR)[\s]?[\d,]{3,}(?:\s*[-–]\s*(?:RM|MYR|SGD|HKD|USD|GBP|AUD|INR)?[\d,]+)?)/i,
   ];
   for (const pat of patterns) {
     const m = text.match(pat);
-    if (m) return m[1].trim();
+    if (m) {
+      const val = (m[1] || m[0]).trim();
+      // Sanity check: must contain at least 3 digits
+      if ((val.match(/\d/g)||[]).length >= 3) return val;
+    }
   }
   return '';
 }
@@ -12369,8 +12417,19 @@ function rpTitleCo(lines, text) {
   let currentTitle = '';
   let currentCompany = '';
 
-  const empIdx = rpSecIdx(lines, EMPLOYMENT_HEADERS);
-  if (empIdx === -1) return { currentTitle, currentCompany };
+  // Pattern: "Position: X" and "Company: Y" labels (common in Malaysian resumes)
+  for(let i = 0; i < Math.min(lines.length, 60); i++) {
+    const line = lines[i];
+    const posMatch = line.match(/^Position[:\s]+(.+)/i);
+    const coMatch  = line.match(/^Company[:\s]+(.+)/i);
+    if(posMatch && !currentTitle)  currentTitle   = posMatch[1].trim();
+    if(coMatch  && !currentCompany) currentCompany = coMatch[1].trim();
+    if(currentTitle && currentCompany) return { currentTitle, currentCompany };
+  }
+  // Fall through to section-based approach if Position:/Company: not found
+  if(!currentTitle || !currentCompany) {
+    const empIdx = rpSecIdx(lines, EMPLOYMENT_HEADERS);
+    if (empIdx === -1) return { currentTitle, currentCompany };
 
   const sectionLines = rpSecBounds(lines, empIdx);
 
@@ -12424,6 +12483,7 @@ function rpTitleCo(lines, text) {
     }
   }
 
+  }
   return { currentTitle, currentCompany };
 }
 
@@ -12625,16 +12685,17 @@ function rpIndustry(text) {
 
 function rpEducation(text) {
   const levels = [
-    { label: 'PhD / Doctorate', keys: ['phd', 'ph.d', 'doctorate', 'doctor of'] },
-    { label: 'Master\'s', keys: ['master', 'msc', 'm.sc', 'ma ', 'mba', 'm.b.a', 'master of'] },
-    { label: 'Bachelor\'s', keys: ['bachelor', 'bsc', 'b.sc', 'ba ', 'b.a', 'beng', 'b.eng', 'bcom', 'degree'] },
-    { label: 'Diploma', keys: ['diploma', 'advanced diploma'] },
-    { label: 'Certificate', keys: ['certificate', 'certification'] },
-    { label: 'SPM / Secondary', keys: ['spm', 'stpm', 'o-level', 'a-level', 'secondary'] },
+    { label: 'PhD / Doctorate', keys: ['\bphd\b', '\bph\.d\b', '\bdoctorate\b', 'doctor of'] },
+    // Exclude "Scrum Master", "Master of Ceremony" etc — must be followed by degree context
+    { label: 'Master\'s', keys: ['\bmsc\b', '\bm\.sc\b', '\bmba\b', '\bm\.b\.a\b', 'master of science', 'master of arts', 'master of business', 'master of engineering', '\bmaster\'s\b', 'masters degree', '\bma in\b', '\bms in\b'] },
+    { label: 'Bachelor\'s', keys: ['\bbachelor\b', '\bbsc\b', '\bb\.sc\b', '\bbeng\b', '\bb\.eng\b', '\bbcom\b', 'bachelor of', 'bachelor\'s', 'bachelor degree'] },
+    { label: 'Diploma', keys: ['\bdiploma\b', 'advanced diploma'] },
+    { label: 'Certificate', keys: ['\bcertificate\b', '\bcertification\b'] },
+    { label: 'SPM / Secondary', keys: ['\bspm\b', '\bstpm\b', '\bo-level\b', '\ba-level\b'] },
   ];
   const lower = text.toLowerCase();
   for (const { label, keys } of levels) {
-    if (keys.some(k => lower.includes(k))) return label;
+    if (keys.some(k => new RegExp(k, 'i').test(lower))) return label;
   }
   return '';
 }
@@ -12667,7 +12728,7 @@ function rpParseResume(rawText) {
   return {
     name:           rpName(lines),
     email:          (text.match(/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i)||[''])[0],
-    phone:          ((text.match(/(\+?\d[\d\s\-()/]{7,16}\d)/)||[''])[0]||'').trim(),
+    phone:          (() => { const m = text.match(/(\+?[\d][\d\s\-.()/-]{6,18}[\d])/); return m ? m[0].replace(/[\s]/g,'') : ''; })(),
     location:       rpLoc(text),
     experience:     rpExp(text),
     salary:         rpSalary(text),
@@ -13113,14 +13174,7 @@ async function loadInlinePdf(candId) {
         if(resp.ok) {
           const buf = await resp.arrayBuffer();
           pdfData = new Uint8Array(buf);
-          // Cache locally for faster next load
-          try {
-            let b64 = '';
-            const chunk = 8192;
-            for(let i = 0; i < pdfData.length; i += chunk)
-              b64 += btoa(String.fromCharCode(...pdfData.subarray(i, i + chunk)));
-            localStorage.setItem('tf_resume_' + candId, JSON.stringify({ b64, type: cand.resumeType || 'application/pdf', filename: cand.resumeFilename }));
-          } catch(e) { /* quota exceeded — fine */ }
+          // Cloudinary URL loaded successfully — no local caching needed
         }
       } catch(e) { console.warn('Cloudinary fetch failed:', e); }
     }
@@ -15138,8 +15192,10 @@ window.saveResumeToCloud = async (candidateId, b64, mimeType, filename) => {
       c.resumeType = mimeType;
       c.resumePath = data.public_id;  // Store public_id for deletion later
       save();
-      // Refresh right panel so PDF viewer switches to Cloudinary URL
-      if(typeof refreshRightPanel === 'function') refreshRightPanel(candidateId);
+      // Reload PDF viewer with actual Cloudinary URL now that it's available
+      if(typeof loadInlinePdf === 'function') {
+        setTimeout(() => loadInlinePdf(candidateId), 150);
+      }
     }
     return true;
   } catch(e) {
@@ -15168,12 +15224,18 @@ window.deleteResumeFromCloud = async (candidateId) => {
 
 window.viewResume = async (id) => {
   const c = getCand(id);
-  // Use Cloudinary URL directly if available
   if(c?.resumeUrl) { window.open(c.resumeUrl, '_blank'); return; }
-  // Fall back to localStorage b64
-  const r = getResumeB64(id);
-  if(r?.b64) { window.open(URL.createObjectURL(b64toBlob(r.b64, r.type||'application/pdf')), '_blank'); return; }
-  showToast('Resume not available — try re-uploading');
+  // Try b64 from documents array
+  const doc = (c?.documents||[]).find(d => d.b64 && (d.type?.includes('pdf') || d.name?.toLowerCase().endsWith('.pdf')));
+  if(doc?.b64) {
+    const bin = atob(doc.b64);
+    const arr = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+    const blob = new Blob([arr], {type: doc.type||'application/pdf'});
+    window.open(URL.createObjectURL(blob), '_blank');
+    return;
+  }
+  showToast('Resume not yet uploaded — please upload via Docs');
 };
 
 window.downloadResume = async (id) => {
